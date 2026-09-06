@@ -1,0 +1,505 @@
+{
+  "_comment": "La Bataille (couloir facon We Are Warriors). Tous les nombres d'equilibrage vivent ici. 3 terrains : campaign (base contre base, niveaux), defense (vagues contre ta base — SEULE source de Points de Stade, plafonnes/jour), raid (attaque pure, butin, 100% horizontal). Les unites sont des individus de TA race : archetypes ci-dessous, stats multipliees par le genome (stages.json axes) et les batiments speciaux de la Colonie. Le cout d'invocation = calcule automatiquement depuis le budget de stats (cost_formula).",
+  "lane": {
+    "length": 1200,
+    "base_x_player": 60,
+    "base_x_enemy": 1140,
+    "spawn_offset": 70
+  },
+  "ration": {
+    "start": 20,
+    "rate_per_sec": 1.6,
+    "max": 120,
+    "start_bonus_per_biomasse": 0.02,
+    "start_bonus_max": 30
+  },
+  "hand": {
+    "size": 3,
+    "deck_size": 8,
+    "draw_on_play": true
+  },
+  "field": {
+    "max_units_start": 4,
+    "max_units_per_stage": 1
+  },
+  "base": {
+    "hp_base": 300,
+    "hp_per_stage": 150
+  },
+  "cost_formula": {
+    "_comment": "cout = round((hp/hp_div + dps*dps_mult + speed/speed_div + range/range_div) * cost_mult) — la regle d'equilibrage centrale : tu peux creer n'importe quoi, le jeu en fixe le prix.",
+    "cost_mult": 1.0,
+    "min_cost": 3,
+    "hp_div": 40,
+    "dps_mult": 1.2,
+    "speed_div": 25,
+    "range_div": 60
+  },
+  "combat": {
+    "_comment": "Regles de combat communes. crit : coup critique (chiffre or). projectile_speed en unites logiques/s. hold_x_pct : ou s'arretent les unites en ordre Tenir.",
+    "crit_chance": 0.1,
+    "crit_mult": 2,
+    "projectile_speed": 520,
+    "hold_x_pct": 0.3,
+    "boss_size_mult": 1.6,
+    "death_fade_sec": 0.5
+  },
+  "traits": {
+    "_comment": "Effets des variantes de cartes (mods.trait). Un objet par trait.",
+    "poison": {
+      "dps": 3,
+      "seconds": 4
+    },
+    "thorns": {
+      "reflect_pct": 30
+    },
+    "frost": {
+      "slow_pct": 40,
+      "seconds": 2
+    },
+    "regen": {
+      "pct_per_sec": 2
+    },
+    "fire": {
+      "dps": 8,
+      "seconds": 3,
+      "splash_range": 45,
+      "splash_pct": 50
+    },
+    "double_shot": {
+      "shots": 2
+    },
+    "heal_all": {
+      "range_mult": 1
+    },
+    "alpha": {
+      "dmg_pct_per_kill": 5
+    },
+    "free_next": {
+      "cards": 1
+    }
+  },
+  "enemy_ai": {
+    "_comment": "Distribution des archetypes ennemis selon le trait de la faction (poids relatifs).",
+    "weights": {
+      "damage": {
+        "brute": 4,
+        "eclaireur": 3,
+        "tireur": 2,
+        "tank": 1,
+        "soigneur": 1
+      },
+      "hp": {
+        "tank": 4,
+        "brute": 3,
+        "eclaireur": 2,
+        "tireur": 1,
+        "soigneur": 1
+      },
+      "speed": {
+        "eclaireur": 5,
+        "tireur": 2,
+        "brute": 2,
+        "tank": 1,
+        "soigneur": 1
+      },
+      "ranged": {
+        "tireur": 5,
+        "eclaireur": 2,
+        "brute": 1,
+        "tank": 1,
+        "soigneur": 2
+      },
+      "tank": {
+        "tank": 5,
+        "brute": 2,
+        "eclaireur": 1,
+        "tireur": 1,
+        "soigneur": 2
+      }
+    },
+    "spawn_interval_min_sec": 0.6
+  },
+  "archetypes": {
+    "_comment": "Archetypes d'unites de la race. role : melee|ranged|tank|support. Les noms changent par stade (names[stade-1]). anim: walk_bounce, attack_pivot, death_pop.",
+    "eclaireur": {
+      "role": "melee",
+      "hp": 60,
+      "dmg": 10,
+      "atk_interval": 0.8,
+      "speed": 60,
+      "range": 28,
+      "size": 0.8,
+      "names": [
+        "Cil nageur",
+        "Zoïde rapide",
+        "Coureur",
+        "Chasseur",
+        "Écuyer",
+        "Fantassin",
+        "Drone",
+        "Éclaireur",
+        "Éclat",
+        "Messager"
+      ]
+    },
+    "brute": {
+      "role": "melee",
+      "hp": 160,
+      "dmg": 22,
+      "atk_interval": 1.2,
+      "speed": 38,
+      "range": 32,
+      "size": 1.15,
+      "names": [
+        "Amibe lourde",
+        "Polype",
+        "Bête",
+        "Brute",
+        "Champion",
+        "Blindé",
+        "Marine",
+        "Titan",
+        "Ombre dense",
+        "Colosse"
+      ]
+    },
+    "tireur": {
+      "role": "ranged",
+      "hp": 50,
+      "dmg": 14,
+      "atk_interval": 1.1,
+      "speed": 42,
+      "range": 180,
+      "size": 0.85,
+      "projectile": "spit",
+      "names": [
+        "Cracheur",
+        "Nématocyste",
+        "Lanceur",
+        "Frondeur",
+        "Archer",
+        "Tireur",
+        "Canonnier",
+        "Lancier photonique",
+        "Rayon",
+        "Verbe"
+      ]
+    },
+    "tank": {
+      "role": "tank",
+      "hp": 320,
+      "dmg": 8,
+      "atk_interval": 1.5,
+      "speed": 28,
+      "range": 30,
+      "size": 1.35,
+      "names": [
+        "Kyste",
+        "Coquille",
+        "Carapace",
+        "Porte-bouclier",
+        "Pavois",
+        "Bouclier lourd",
+        "Rempart mobile",
+        "Mur stellaire",
+        "Silence",
+        "Rempart"
+      ]
+    },
+    "soigneur": {
+      "role": "support",
+      "hp": 70,
+      "dmg": 0,
+      "heal": 6,
+      "atk_interval": 1.0,
+      "speed": 40,
+      "range": 120,
+      "size": 0.9,
+      "names": [
+        "Cellule mère",
+        "Symbiote",
+        "Lécheur",
+        "Chaman",
+        "Prêtre",
+        "Médic",
+        "Nano-médic",
+        "Gardien",
+        "Souffle",
+        "Grâce"
+      ]
+    }
+  },
+  "orders": {
+    "default": "attack",
+    "options": [
+      "attack",
+      "hold"
+    ]
+  },
+  "targeting": {
+    "default": "nearest",
+    "options": [
+      "nearest",
+      "weakest",
+      "strongest",
+      "once_each"
+    ]
+  },
+  "turrets": {
+    "_comment": "Couche fixe (achetee avec Materiaux). 4 slots max. Degats boostes par spec_e de la Colonie.",
+    "slots": 4,
+    "types": {
+      "tour": {
+        "label": "Tour",
+        "icon": "🏹",
+        "dmg": 12,
+        "interval": 1.0,
+        "range": 220,
+        "cost_mat": 60,
+        "cost_growth": 1.7
+      },
+      "piege": {
+        "label": "Piège",
+        "icon": "🪤",
+        "dmg": 40,
+        "interval": 3.0,
+        "range": 60,
+        "cost_mat": 45,
+        "cost_growth": 1.6
+      },
+      "soin": {
+        "label": "Autel",
+        "icon": "💚",
+        "heal": 5,
+        "interval": 1.0,
+        "range": 150,
+        "cost_mat": 80,
+        "cost_growth": 1.8
+      }
+    }
+  },
+  "enemy_factions": {
+    "_comment": "Factions ennemies = autres lignees procedurales (autre seed, autre teinte). Rotation tous les 10 niveaux de campagne. Le rendu utilise le meme moteur de creature avec la palette de la faction.",
+    "list": [
+      {
+        "id": "les_voraces",
+        "name": "Les Voraces",
+        "tint": "#EF5D50",
+        "shade": "#8C2A22",
+        "seed": 101,
+        "trait": "damage",
+        "desc": "Ils ne construisent rien. Ils mangent."
+      },
+      {
+        "id": "les_gris",
+        "name": "Les Gris",
+        "tint": "#7A8598",
+        "shade": "#3E4A5C",
+        "seed": 202,
+        "trait": "hp",
+        "desc": "Patients, nombreux, sans visage."
+      },
+      {
+        "id": "les_luisants",
+        "name": "Les Luisants",
+        "tint": "#A76BD9",
+        "shade": "#5A2E8C",
+        "seed": 303,
+        "trait": "speed",
+        "desc": "Ils arrivent avant qu'on les voie."
+      },
+      {
+        "id": "les_pierres",
+        "name": "Les Pierres",
+        "tint": "#C97A3E",
+        "shade": "#7A4218",
+        "seed": 404,
+        "trait": "tank",
+        "desc": "Chaque coup y laisse une trace, jamais une blessure."
+      },
+      {
+        "id": "les_echos",
+        "name": "Les Échos",
+        "tint": "#4EA8E8",
+        "shade": "#1E4E7A",
+        "seed": 505,
+        "trait": "ranged",
+        "desc": "Ils répètent tes propres cris contre toi."
+      }
+    ],
+    "rotation_every": 10
+  },
+  "campaign": {
+    "_comment": "~40 niveaux par stade (difficulte : hp/dmg ennemis x growth^niveau, spawn plus rapide). Recompense : genes + fragments de carte. La difficulte est le regulateur, pas un cap.",
+    "levels_per_stage": 40,
+    "enemy_hp_growth": 1.07,
+    "enemy_dmg_growth": 1.05,
+    "enemy_ration_rate_base": 1.2,
+    "enemy_ration_growth": 1.03,
+    "enemy_base_hp": 250,
+    "enemy_base_hp_growth": 1.06,
+    "rewards": {
+      "genes_base": 10,
+      "genes_per_level": 1.5,
+      "card_chance": 0.35,
+      "materiaux_base": 20
+    },
+    "boss_every": 10
+  },
+  "defense": {
+    "_comment": "Vagues contre ta base. Points de Stade : stage_points_per_wave, plafonne par jour (stages.json). Apercu deterministe par numero de vague. Boss toutes les 5 vagues. Auto-resolution honorable si absent : la vague est perdue sans penalite.",
+    "wave_duration_sec": 40,
+    "enemy_count_base": 4,
+    "enemy_count_growth": 0.6,
+    "enemy_hp_growth": 1.08,
+    "stage_points_per_wave": 2,
+    "genes_per_wave": 4,
+    "biomasse_per_wave": 15,
+    "boss_every": 5,
+    "boss_hp_mult": 6,
+    "max_wave_progress_per_day": 6
+  },
+  "raid": {
+    "_comment": "Attaque pure : seule la base ennemie est visible. Peril 1-5 : butin domine toujours le risque. 3 sorties gratuites/jour puis cout croissant (plafond 12). Zero Point de Stade.",
+    "free_per_day": 3,
+    "cost_after_free": [
+      5,
+      8,
+      12
+    ],
+    "peril": [
+      {
+        "n": 1,
+        "name": "Calme",
+        "hp_mult": 0.8,
+        "loot_mult": 1.0
+      },
+      {
+        "n": 2,
+        "name": "Tendu",
+        "hp_mult": 1.2,
+        "loot_mult": 1.6
+      },
+      {
+        "n": 3,
+        "name": "Hostile",
+        "hp_mult": 1.8,
+        "loot_mult": 2.5
+      },
+      {
+        "n": 4,
+        "name": "Féroce",
+        "hp_mult": 2.6,
+        "loot_mult": 4.0
+      },
+      {
+        "n": 5,
+        "name": "Cataclysmique",
+        "hp_mult": 4.0,
+        "loot_mult": 7.0
+      }
+    ],
+    "loot": {
+      "genes_base": 18,
+      "materiaux_base": 30
+    }
+  },
+  "powers": {
+    "_comment": "Ultis charges par l'Elan (charge_elan) — spectacle. 1 JSON par pouvoir, visual lu par render/fx.js.",
+    "list": [
+      {
+        "id": "meteores",
+        "name": "Pluie de météores",
+        "icon": "☄️",
+        "min_stage": 1,
+        "charge_elan": 40,
+        "cooldown_sec": 30,
+        "effect": {
+          "kind": "aoe_damage",
+          "dmg": 60,
+          "radius": 160
+        }
+      },
+      {
+        "id": "gel",
+        "name": "Gel temporel",
+        "icon": "❄️",
+        "min_stage": 2,
+        "charge_elan": 60,
+        "cooldown_sec": 45,
+        "effect": {
+          "kind": "freeze",
+          "seconds": 4
+        }
+      },
+      {
+        "id": "nova",
+        "name": "Nova de soin",
+        "icon": "💚",
+        "min_stage": 3,
+        "charge_elan": 50,
+        "cooldown_sec": 40,
+        "effect": {
+          "kind": "heal_all",
+          "pct": 40
+        }
+      }
+    ]
+  },
+  "view": {
+    "_comment": "Geometrie du couloir. Le trajet n'est plus horizontal mais en diagonale, du haut-gauche (t=0, base joueur, au loin) vers le bas-droite (t=1, base ennemie, au premier plan) : a surface d'ecran egale le chemin est bien plus long. far_scale/near_scale = echelle des unites selon la profondeur (perspective volontairement legere). unit_pct = taille de reference d'une unite (fraction du plus petit cote). row_* = rangs lateraux : les unites qui sont au meme endroit du couloir se rangent cote a cote en eventail, avec un leger chevauchement, au lieu de se cacher les unes derriere les autres — on peut ainsi les compter d'un coup d'oeil.",
+    "pad_x_pct": 0.17,
+    "top_y_pct": 0.3,
+    "bottom_y_pct": 0.72,
+    "horizon_lift": 0.08,
+    "far_scale": 0.78,
+    "near_scale": 1.16,
+    "unit_pct": 0.085,
+    "base_scale": 1.15,
+    "lane_half_width": 1.35,
+    "row_spacing": 0.5,
+    "row_depth": 0.035,
+    "rows": 5,
+    "row_x_window": 40,
+    "layer_setback": 16
+  },
+  "ui": {
+    "_comment": "Icones et libelles de l'interface de combat. Les cartes en main affichent les stats listees dans card_stats, dans cet ordre ; role_icons/role_labels servent a reconnaitre le type d'unite d'un coup d'oeil. Tout est ici pour qu'on puisse changer un pictogramme sans toucher au code.",
+    "stat_icons": {
+      "hp": "❤️",
+      "dmg": "⚔️",
+      "heal": "✚",
+      "range": "🎯",
+      "speed": "💨",
+      "interval": "⏱️"
+    },
+    "stat_labels": {
+      "hp": "Points de vie",
+      "dmg": "Dégâts par coup",
+      "heal": "Soin par coup",
+      "range": "Portée",
+      "speed": "Vitesse",
+      "interval": "Cadence"
+    },
+    "role_icons": {
+      "melee": "⚔️",
+      "ranged": "🏹",
+      "tank": "🛡️",
+      "support": "✚"
+    },
+    "role_labels": {
+      "melee": "Corps à corps",
+      "ranged": "À distance",
+      "tank": "Encaisseur",
+      "support": "Soutien"
+    },
+    "card_stats": [
+      "hp",
+      "dmg",
+      "range"
+    ],
+    "ration_icon": "🍖",
+    "unit_icon": "🧬"
+  }
+}

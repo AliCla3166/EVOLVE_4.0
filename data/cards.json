@@ -1,0 +1,327 @@
+{
+  "_comment": "Les Cartes. Deux familles : unit (un individu de ta race : archetype + variante + bonus) et instinct (passif de synergie facon joker Balatro). Rarete 4 niveaux, editions ORTHOGONALES a la rarete (desir, pas rendement — sauf une legere touche de stats, jamais de cout de slot pour negative). Verrou des doublons : une carte devient jouable a la 2e prise ; chaque doublon suivant = +1 niveau (+4% stats). Pity legendaire a 40 tirages. Tirage = genes (cost_pack). XP de combat par carte (kills) : paliers xp_tiers debloquent special / passif / actif.",
+  "pack_cost_genes": 30,
+  "pity_legendary": 40,
+  "duplicate_level_pct": 4,
+  "starter_deck": [
+    "u_eclaireur_base",
+    "u_eclaireur_base",
+    "u_brute_base",
+    "u_tireur_base",
+    "u_tank_base",
+    "u_soigneur_base",
+    "i_horde",
+    "u_brute_base"
+  ],
+  "starter_collection": {
+    "u_eclaireur_base": 3,
+    "u_brute_base": 2,
+    "u_tireur_base": 2,
+    "u_tank_base": 2,
+    "u_soigneur_base": 2,
+    "i_horde": 2
+  },
+  "rarity": {
+    "common": {
+      "label": "Commune",
+      "color": "#7A8598",
+      "weight": 60
+    },
+    "rare": {
+      "label": "Rare",
+      "color": "#4EA8E8",
+      "weight": 27
+    },
+    "epic": {
+      "label": "Épique",
+      "color": "#A76BD9",
+      "weight": 10
+    },
+    "legendary": {
+      "label": "Légendaire",
+      "color": "#FFC24B",
+      "weight": 3
+    }
+  },
+  "editions": {
+    "_comment": "Tirees independamment de la rarete. chance en %, bonus % stats leger, negative = ne compte pas dans la taille du deck.",
+    "none": {
+      "chance": 84,
+      "label": "",
+      "bonus_pct": 0
+    },
+    "chromee": {
+      "chance": 9,
+      "label": "Chromée",
+      "bonus_pct": 15,
+      "fx": "chrome"
+    },
+    "holo": {
+      "chance": 5,
+      "label": "Holographique",
+      "bonus_pct": 35,
+      "fx": "holo"
+    },
+    "polychrome": {
+      "chance": 1.5,
+      "label": "Polychrome",
+      "bonus_pct": 60,
+      "fx": "poly"
+    },
+    "negative": {
+      "chance": 0.5,
+      "label": "Négative",
+      "bonus_pct": 0,
+      "fx": "negative",
+      "no_slot": true
+    }
+  },
+  "xp_tiers": [
+    5,
+    20,
+    60
+  ],
+  "cards": [
+    {
+      "id": "u_eclaireur_base",
+      "kind": "unit",
+      "archetype": "eclaireur",
+      "rarity": "common",
+      "name": "Éclaireur",
+      "desc": "Rapide, fragile, partout.",
+      "mods": {}
+    },
+    {
+      "id": "u_brute_base",
+      "kind": "unit",
+      "archetype": "brute",
+      "rarity": "common",
+      "name": "Brute",
+      "desc": "Frappe fort, marche lentement.",
+      "mods": {}
+    },
+    {
+      "id": "u_tireur_base",
+      "kind": "unit",
+      "archetype": "tireur",
+      "rarity": "common",
+      "name": "Cracheur",
+      "desc": "Attaque de loin.",
+      "mods": {}
+    },
+    {
+      "id": "u_tank_base",
+      "kind": "unit",
+      "archetype": "tank",
+      "rarity": "common",
+      "name": "Kyste",
+      "desc": "Encaisse à la place des autres.",
+      "mods": {}
+    },
+    {
+      "id": "u_soigneur_base",
+      "kind": "unit",
+      "archetype": "soigneur",
+      "rarity": "common",
+      "name": "Cellule mère",
+      "desc": "Soigne l'allié le plus blessé à portée.",
+      "mods": {}
+    },
+    {
+      "id": "u_eclaireur_venin",
+      "kind": "unit",
+      "archetype": "eclaireur",
+      "rarity": "rare",
+      "name": "Éclaireur venimeux",
+      "desc": "Ses coups empoisonnent (3 dégâts/s pendant 4 s).",
+      "mods": {
+        "trait": "poison"
+      }
+    },
+    {
+      "id": "u_brute_epines",
+      "kind": "unit",
+      "archetype": "brute",
+      "rarity": "rare",
+      "name": "Brute à épines",
+      "desc": "Renvoie 30 % des dégâts reçus.",
+      "mods": {
+        "trait": "thorns",
+        "hp_pct": 10
+      }
+    },
+    {
+      "id": "u_tireur_gel",
+      "kind": "unit",
+      "archetype": "tireur",
+      "rarity": "rare",
+      "name": "Cracheur de givre",
+      "desc": "Ralentit sa cible de 40 % pendant 2 s.",
+      "mods": {
+        "trait": "frost"
+      }
+    },
+    {
+      "id": "u_tank_regen",
+      "kind": "unit",
+      "archetype": "tank",
+      "rarity": "rare",
+      "name": "Kyste régénérant",
+      "desc": "Régénère 2 % de ses PV par seconde.",
+      "mods": {
+        "trait": "regen",
+        "hp_pct": 15
+      }
+    },
+    {
+      "id": "u_brute_feu",
+      "kind": "unit",
+      "archetype": "brute",
+      "rarity": "epic",
+      "name": "Brute incandescente",
+      "desc": "Ses coups brûlent (8 dégâts/s, 3 s) et touchent en zone.",
+      "mods": {
+        "trait": "fire",
+        "dmg_pct": 20
+      }
+    },
+    {
+      "id": "u_tireur_double",
+      "kind": "unit",
+      "archetype": "tireur",
+      "rarity": "epic",
+      "name": "Double cracheur",
+      "desc": "Tire deux projectiles.",
+      "mods": {
+        "trait": "double_shot"
+      }
+    },
+    {
+      "id": "u_soigneur_aura",
+      "kind": "unit",
+      "archetype": "soigneur",
+      "rarity": "epic",
+      "name": "Matriarche",
+      "desc": "Soigne tous les alliés à portée.",
+      "mods": {
+        "trait": "heal_all",
+        "hp_pct": 20
+      }
+    },
+    {
+      "id": "u_alpha",
+      "kind": "unit",
+      "archetype": "brute",
+      "rarity": "legendary",
+      "name": "L'Alpha",
+      "desc": "Chaque kill le rend plus fort (+5 % dégâts, cumulable).",
+      "mods": {
+        "trait": "alpha",
+        "hp_pct": 40,
+        "dmg_pct": 30,
+        "size": 1.4
+      }
+    },
+    {
+      "id": "u_oracle",
+      "kind": "unit",
+      "archetype": "soigneur",
+      "rarity": "legendary",
+      "name": "L'Oracle",
+      "desc": "À l'arrivée, la prochaine carte tirée coûte 0.",
+      "mods": {
+        "trait": "free_next",
+        "hp_pct": 30
+      }
+    },
+    {
+      "id": "i_horde",
+      "kind": "instinct",
+      "rarity": "common",
+      "name": "Horde",
+      "desc": "+10 % dégâts pour chaque Éclaireur sur le terrain.",
+      "effect": {
+        "kind": "per_archetype",
+        "archetype": "eclaireur",
+        "dmg_pct": 10
+      },
+      "icon": "🐾"
+    },
+    {
+      "id": "i_carapace",
+      "kind": "instinct",
+      "rarity": "common",
+      "name": "Instinct de carapace",
+      "desc": "Les Kystes ont +25 % PV.",
+      "effect": {
+        "kind": "archetype_bonus",
+        "archetype": "tank",
+        "hp_pct": 25
+      },
+      "icon": "🐚"
+    },
+    {
+      "id": "i_frugalite",
+      "kind": "instinct",
+      "rarity": "rare",
+      "name": "Frugalité",
+      "desc": "Les cartes communes coûtent 1 ration de moins.",
+      "effect": {
+        "kind": "cost_reduction",
+        "rarity": "common",
+        "amount": 1
+      },
+      "icon": "🍂"
+    },
+    {
+      "id": "i_meute",
+      "kind": "instinct",
+      "rarity": "rare",
+      "name": "Esprit de meute",
+      "desc": "+15 % vitesse quand 3 unités ou plus sont sur le terrain.",
+      "effect": {
+        "kind": "threshold_units",
+        "min": 3,
+        "speed_pct": 15
+      },
+      "icon": "🌀"
+    },
+    {
+      "id": "i_sang",
+      "kind": "instinct",
+      "rarity": "epic",
+      "name": "Soif de sang",
+      "desc": "Chaque kill rend 2 rations.",
+      "effect": {
+        "kind": "on_kill_ration",
+        "amount": 2
+      },
+      "icon": "🩸"
+    },
+    {
+      "id": "i_symbiose",
+      "kind": "instinct",
+      "rarity": "epic",
+      "name": "Symbiose",
+      "desc": "Les soigneurs ont +50 % de soin si un Kyste est présent.",
+      "effect": {
+        "kind": "combo",
+        "needs": "tank",
+        "archetype": "soigneur",
+        "heal_pct": 50
+      },
+      "icon": "🔗"
+    },
+    {
+      "id": "i_genese",
+      "kind": "instinct",
+      "rarity": "legendary",
+      "name": "Genèse",
+      "desc": "La première carte de chaque bataille coûte 0.",
+      "effect": {
+        "kind": "first_free"
+      },
+      "icon": "✨"
+    }
+  ]
+}

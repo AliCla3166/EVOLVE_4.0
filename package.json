@@ -1,0 +1,8 @@
+{
+  "name": "evolve4",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EVOLVE 4.0 — Lignee : jeu mobile de suivi d'habitudes (PWA)",
+  "type": "module",
+  "scripts": { "dev": "python3 -m http.server 8765" }
+}

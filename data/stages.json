@@ -1,0 +1,31 @@
+{
+  "_comment": "Les 10 stades de la Lignee. stage_points_required = Points de Stade (gagnes UNIQUEMENT en Bataille mode Defense, plafonnes par jour dans battle.json) ; elan_cost = Elan a depenser pour la Metamorphose. Cible : 1 a 3 mois par stade. On baisse le prix, jamais on gonfle le gain. bodyplan pilote le rendu procedural (render/creature.js). palette = teinte/ombre/fond du monde.",
+  "stage_points_daily_cap": 12,
+  "stages": [
+    { "n": 1, "id": "cellule", "name": "Cellule", "icon": "🦠", "tagline": "Survivre au noir de l'océan primordial", "bodyplan": "cell", "palette": { "tint": "#3FB8C9", "shade": "#1E6E7A", "bg": "#0B1F33", "bg2": "#123049", "ground": "#1B3A4F" }, "stage_points_required": 0, "elan_cost": 0, "unlocks": ["ritual", "species", "colony", "battle", "cards"] },
+    { "n": 2, "id": "colonie", "name": "Colonie", "icon": "🫧", "tagline": "Plusieurs cellules, un seul vouloir", "bodyplan": "cluster", "palette": { "tint": "#5CC98A", "shade": "#2E7A52", "bg": "#0E2A3A", "bg2": "#173D4E", "ground": "#1F4D55" }, "stage_points_required": 120, "elan_cost": 900 },
+    { "n": 3, "id": "creature", "name": "Créature", "icon": "🐾", "tagline": "Des pattes, des yeux, une faim", "bodyplan": "beast", "palette": { "tint": "#8FC54A", "shade": "#4E7A22", "bg": "#1D2E1B", "bg2": "#2C4527", "ground": "#3E5A2A" }, "stage_points_required": 260, "elan_cost": 2200 },
+    { "n": 4, "id": "meute", "name": "Meute", "icon": "🔥", "tagline": "Le feu, les outils, le cri", "bodyplan": "biped", "palette": { "tint": "#E0A045", "shade": "#8A5A1C", "bg": "#2B1F16", "bg2": "#3E2C1E", "ground": "#5A4028" }, "stage_points_required": 420, "elan_cost": 4200 },
+    { "n": 5, "id": "cite", "name": "Cité", "icon": "🏘️", "tagline": "Des murs, des marchés, des dieux", "bodyplan": "biped", "palette": { "tint": "#D9B36A", "shade": "#8C6A2A", "bg": "#22252E", "bg2": "#33384A", "ground": "#4B4A55" }, "stage_points_required": 600, "elan_cost": 7000 },
+    { "n": 6, "id": "planetaire", "name": "Planétaire", "icon": "🌍", "tagline": "Une seule espèce, un seul monde", "bodyplan": "biped", "palette": { "tint": "#4EA8E8", "shade": "#2E76AE", "bg": "#151B2B", "bg2": "#1F2A44", "ground": "#2B3A5C" }, "stage_points_required": 820, "elan_cost": 10500 },
+    { "n": 7, "id": "stellaire", "name": "Stellaire", "icon": "🚀", "tagline": "Sortir du berceau", "bodyplan": "astral", "palette": { "tint": "#5B8FC7", "shade": "#2F5C8C", "bg": "#0B1020", "bg2": "#151C36", "ground": "#232C52" }, "stage_points_required": 1080, "elan_cost": 15000 },
+    { "n": 8, "id": "galactique", "name": "Galactique", "icon": "🌌", "tagline": "L'échelle dépasse la raison", "bodyplan": "astral", "palette": { "tint": "#A76BD9", "shade": "#7742A8", "bg": "#100A20", "bg2": "#1E1238", "ground": "#2E1C52" }, "stage_points_required": 1380, "elan_cost": 21000 },
+    { "n": 9, "id": "transcendance", "name": "Transcendance", "icon": "🔮", "tagline": "Quitter la matière", "bodyplan": "spirit", "palette": { "tint": "#D8407A", "shade": "#8C2A50", "bg": "#160A18", "bg2": "#2A1230", "ground": "#3C1C44" }, "stage_points_required": 1720, "elan_cost": 28000 },
+    { "n": 10, "id": "divinite", "name": "Divinité", "icon": "✨", "tagline": "Créer l'univers suivant", "bodyplan": "god", "palette": { "tint": "#F0E4B8", "shade": "#C9A84A", "bg": "#2A2410", "bg2": "#463C1A", "ground": "#5C4E22" }, "stage_points_required": 2100, "elan_cost": 36000, "emissive": true }
+  ],
+  "axes": {
+    "_comment": "Les 6 axes du genome. Chaque axe modifie les stats de TOUTES les unites de la race (bonus par point, en %).",
+    "order": ["vigueur", "robustesse", "esprit", "ingeniosite", "lien", "ombre"],
+    "vigueur": { "label": "Vigueur", "icon": "💪", "color": "#EF5D50", "stat": "speed", "pct_per_point": 0.6 },
+    "robustesse": { "label": "Robustesse", "icon": "🍖", "color": "#E0A045", "stat": "hp", "pct_per_point": 0.8 },
+    "esprit": { "label": "Esprit", "icon": "🧠", "color": "#A76BD9", "stat": "power_charge", "pct_per_point": 0.7 },
+    "ingeniosite": { "label": "Ingéniosité", "icon": "🔧", "color": "#4EA8E8", "stat": "production", "pct_per_point": 0.5 },
+    "lien": { "label": "Lien", "icon": "🤝", "color": "#45D95E", "stat": "ration_rate", "pct_per_point": 0.5 },
+    "ombre": { "label": "Ombre", "icon": "🌑", "color": "#6B5B8C", "stat": "damage", "pct_per_point": 1.0, "malus_stat": "hp", "malus_pct_per_point": 0.4 }
+  },
+  "cycle": {
+    "_comment": "Nouveau Cycle : atteindre la Divinite relance a la Cellule. blessings = bonus permanents tires des 2 axes dominants de la race precedente.",
+    "essence_per_cycle": 1,
+    "blessing_pct_per_essence": 5
+  }
+}
