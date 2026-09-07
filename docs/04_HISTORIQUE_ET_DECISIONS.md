@@ -117,3 +117,35 @@ We Are Warriors, on ajoute la diversité, l'équipement et l'animation.
 
 Vérifié au navigateur : bataille réelle en stade 5 avec quatre tourelles, zéro erreur console.
 Planche de validation publiée avant mise en production.
+
+## 07/09/2026 — Passe 2 : le système de tracé (`render/style.js`)
+
+Retour d'Ali sur la première passe : « ça fait vraiment brouillon ». L'audit du code a donné
+quatre causes mesurables, et aucune n'était une question de style :
+
+| Mesuré dans l'ancien code | Corrigé par |
+|---|---|
+| **18 épaisseurs de trait** différentes sur une seule créature | `weights()` : trois épaisseurs — silhouette, structure, accent. Toute autre valeur est un bug de style. |
+| **31 détails intérieurs** portant chacun un contour noir | `inner()` : un détail qui vit dans une silhouette déjà contournée ne s'entoure jamais d'encre. |
+| **6 membres tracés en deux traits superposés** (encre puis couleur) | `capsule()` : un membre est une forme fermée fuselée, plus un trait. Supprime les jointures visibles à l'épaule et à la hanche. |
+| aplats parfaitement plats, détails placés au hasard | `tones()` + `form()` : quatre valeurs par teinte, une seule direction de lumière (haut-gauche), ombrage en aplats francs — du volume sans un seul dégradé, ce que la charte exige. `golden()` remplace le placement aléatoire. |
+
+`form()` est le cœur : on remplit la silhouette, on peint **dans son masque** trois aplats décalés
+vers la lumière, puis on contourne **une seule fois**. Aucun trait ne peut donc baver. En dessous
+de 26 px les bandes ne sont plus lisibles : on retombe sur un aplat simple (LOD).
+
+Appliqué aux trois moteurs : `creature.js` (réécrit), `gear.js` (armes en formes fermées avec la
+même lumière), `buildings.js` (les monuments reçoivent le même plan de lumière, par bandes
+horizontales découpées dans la silhouette — un tracé canvas ne pouvant pas être rejoué, la
+technique du décalage ne s'y applique pas).
+
+Ajouté au passage, en réponse au diagnostic : **une tête par archétype** — casque pour le tank,
+crête pour la brute, capuche pour le tireur, couronne de pétales pour le soigneur, bandeau pour
+l'éclaireur. C'est le repère de lisibilité le moins cher du style, et il n'était pas utilisé.
+Et **un geste par archétype** (`ARCH[].geste`) : la brute lève puis abat, l'éclaireur pique,
+le tank pousse, le tireur recule à la détente, le soigneur lève son bâton.
+
+Coût mesuré en bataille réelle (stade 5, quatre tourelles) : 29 → 27 images/seconde entre l'ancien
+et le nouveau moteur, dans un conteneur sans GPU où les deux plafonnent pour la même raison. Le
+surcoût réel du système est donc négligeable ; le chiffre absolu ne veut rien dire hors du
+téléphone.

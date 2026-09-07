@@ -8,15 +8,29 @@
 // Chaque forme suit la charte : contour encre epais, aplats francs, un highlight, zero degrade.
 // `shape` vient de data/colony.json (cle "shape"), donc ajouter un batiment = ajouter une forme ici
 // et une ligne la-bas. Le moteur reste ignorant du contenu.
-const INK = '#171B23';
+import { INK, shade, tones, weights, form, inner, gloss, groundShade } from './style.js';
 
-function sf(ctx, fill, lw) { ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.stroke(); }
-function shade(hex, amt) {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (c) => Math.max(0, Math.min(255, Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt)));
-  return '#' + ((f(n >> 16) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).padStart(6, '0');
+// sf() garde sa signature d'origine (on remplit puis on contourne), mais passe par form() :
+// les monuments recoivent donc exactement le meme ombrage en aplats et la meme direction de
+// lumiere que les creatures. C'est ce qui fait qu'une colonie et ses habitants ont l'air
+// d'appartenir au meme jeu.
+// Un tracé canvas ne peut pas être rejoué : il est figé en espace écran dès sa construction.
+// On ne peut donc pas décaler une copie de la silhouette comme on le fait pour les créatures.
+// La technique qui marche ici : DÉCOUPER dans la forme (clip conserve le tracé courant) puis
+// peindre trois bandes horizontales pleines. Résultat : même plan de lumière que les créatures
+// — clair en haut, neutre au milieu, sombre en bas — sans un seul dégradé.
+let CUR = { size: 40, hiY: -30, midY: -12 };
+function sf(ctx, fill, lw) {
+  const T = tones(fill, CUR.size);
+  ctx.save();
+  ctx.clip();                                   // clip ne vide pas le tracé courant
+  ctx.fillStyle = T.hi;   ctx.fillRect(-9999, -9999, 19998, 19998);
+  ctx.fillStyle = fill;   ctx.fillRect(-9999, CUR.hiY, 19998, 19998);
+  ctx.fillStyle = T.mid;  ctx.fillRect(-9999, CUR.midY, 19998, 19998);
+  ctx.restore();
+  ctx.lineWidth = lw; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.stroke();
 }
-function shine(ctx, x, y, rx, ry) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.5, 0, 6.28); ctx.fillStyle = 'rgba(255,255,255,.26)'; ctx.fill(); }
+function shine(ctx, x, y, rx, ry) { gloss(ctx, x, y, rx, ry, .26); }
 
 // ---------------------------------------------------------------- formes
 // Repere commun : (0,0) = point de pose au sol, y negatif vers le haut, s = demi-largeur de base.
@@ -169,8 +183,10 @@ export function drawBuilding(ctx, opts) {
   ctx.save();
   ctx.translate(x, y);
   // ombre portee au sol
-  ctx.beginPath(); ctx.ellipse(0, 0, s * 1.05, s * .3, 0, 0, 6.28); ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fill();
-  const lw = Math.max(2, s * 0.2);
+  groundShade(ctx, 0, 0, s * 1.05);
+  CUR = { size: s * 2, hiY: -s * 1.05, midY: -s * 0.42 };
+  const W = weights(s * 2);
+  const lw = W.hero;
   // Un batiment en chantier n'est pas encore bati : on montre des fondations et des etais.
   if (!level && busy) {
     ctx.beginPath(); ctx.rect(-s * .8, -s * .28, s * 1.6, s * .28); sf(ctx, shade(palette.ground, .12), lw * .8);
