@@ -24,16 +24,23 @@ export function shade(hex, amt) {
   const f = (c) => Math.max(0, Math.min(255, Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt)));
   return '#' + ((f(n >> 16) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).padStart(6, '0');
 }
-export function hueShift(hex, deg) {
-  const n = parseInt(hex.slice(1), 16); let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b); let h = 0, s = 0, l = (max + min) / 2;
-  if (max !== min) { const d = max - min; s = l > .5 ? d / (2 - max - min) : d / (max + min); h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; }
-  h = (h + deg / 360 + 1) % 1;
-  const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
-  const hue = (t) => { t = (t + 1) % 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < .5) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; };
+// Conversion HSL aller-retour : la seule facon de decaler une teinte SANS perdre sa valeur.
+// C'est le socle des genes de palette : deux especes du meme age partagent la meme lumiere,
+// pas la meme couleur.
+export function hsl(hex, dh = 0, ds = 1, dl = 0) {
+  const n = parseInt(hex.slice(1), 16); const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b); let h = 0, sa = 0; let l = (max + min) / 2;
+  if (max !== min) { const d = max - min; sa = l > .5 ? d / (2 - max - min) : d / (max + min); h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; }
+  h = (h + dh / 360 + 1) % 1;
+  sa = Math.max(0, Math.min(1, sa * ds));
+  l = Math.max(0.04, Math.min(0.96, l + dl));
+  const q = l < .5 ? l * (1 + sa) : l + sa - l * sa, p2 = 2 * l - q;
+  const hue = (t) => { t = (t + 1) % 1; if (t < 1 / 6) return p2 + (q - p2) * 6 * t; if (t < .5) return q; if (t < 2 / 3) return p2 + (q - p2) * (2 / 3 - t) * 6; return p2; };
   const R = Math.round(hue(h + 1 / 3) * 255), G = Math.round(hue(h) * 255), B = Math.round(hue(h - 1 / 3) * 255);
   return '#' + ((R << 16) | (G << 8) | B).toString(16).padStart(6, '0');
 }
+export function hueShift(hex, deg) { return hsl(hex, deg); }
+
 
 // Quatre valeurs par teinte. Une seule direction de lumière pour tout le jeu : haut-gauche.
 export const LIGHT = { x: -1, y: -1 };
@@ -52,9 +59,10 @@ export function tones(base, size) {
 export function weights(size, outline = 1) {
   const k = size * (outline || 1);
   return {
-    hero: Math.max(1.2, k * 0.052),   // contour de silhouette
-    struct: Math.max(0.9, k * 0.026), // séparations internes réelles (bouche, visière)
-    hair: Math.max(0.6, k * 0.014)    // accents fins (rainures, cordes)
+    hero: Math.max(1.2, k * 0.044),   // contour de silhouette (torse, tête)
+    limb: Math.max(1.0, k * 0.030),   // membres et pièces d'équipement : plus fin que la silhouette
+    struct: Math.max(0.9, k * 0.022), // séparations internes réelles (bouche, visière)
+    hair: Math.max(0.6, k * 0.013)    // accents fins (rainures, cordes)
   };
 }
 

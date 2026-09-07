@@ -419,7 +419,7 @@ function buildWalkers() {
   const out = [];
   for (let i = 0; i < n; i++) {
     const p = next();
-    out.push({ x: p.x, y: p.y, tx: next().x, ty: next().y, speed: rng.range(6, 14), facing: 1, wait: rng.range(0, 2) });
+    out.push({ i, x: p.x, y: p.y, tx: next().x, ty: next().y, speed: rng.range(6, 14), facing: 1, wait: rng.range(0, 2) });
   }
   walkers = out;
 }
@@ -467,8 +467,14 @@ function drawMap(t) {
     const x = g.cx + Math.cos(a) * g.rx * 1.18, y = g.cy + Math.sin(a) * g.ry * 1.32;
     items.push({ y, draw: () => drawBuildingArt(ctx, { x, y, s: Math.min(g.w * 0.062, 24), shape: def.shape, level: lvl, busy, t, palette: p, aquatic: isAquatic() }) });
   }
+  // Les habitants sont de la meme espece, pas des clones : chacun garde sa propre graine, donc
+  // sa nuance, sa livree et ses petites asymetries. C'est ce qui fait qu'une colonie a l'air
+  // peuplee plutot que dupliquee.
   const visual = speciesVisual();
-  for (const wk of walkers) items.push({ y: wk.y, draw: () => drawCreature(ctx, visual, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' }) });
+  for (const wk of walkers) {
+    if (!wk.vis) wk.vis = { ...visual, seed: ((visual.seed | 0) + wk.i * 7919) >>> 0 };
+    items.push({ y: wk.y, draw: () => drawCreature(ctx, wk.vis, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' }) });
+  }
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
 }

@@ -7,6 +7,7 @@ import { state, save } from '../core/state.js';
 import { h, btn, panel, bar, chip, toast, modal } from '../core/ui.js';
 import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { drawCreature, renderToCanvas } from '../render/creature.js';
+import { wildVisual } from '../render/genes.js';
 import { makeRng } from '../core/rng.js';
 import { dayKey } from '../core/clock.js';
 import {
@@ -59,6 +60,13 @@ function currentFaction() {
 }
 function factionVisual(fac) {
   return { seed: fac.seed, stage: stageNum(), bodyplan: stageDef().bodyplan, eyes: 2, eye_size: 1, mouth: 'fangs', skin: 'plain', outline: 1 };
+}
+// Une vague, c'etait six fois la meme silhouette repeinte : toutes les unites ennemies
+// partageaient UN visuel. Chaque bete tire maintenant sa propre morphologie et sa propre
+// palette de sa graine — la faction reste lisible (meme teinte de base), les individus non.
+function foeVisual(u) {
+  if (!u.vis) u.vis = wildVisual(B.enemyVisual, ((B.fac.seed | 0) * 7919 + (u.foeN | 0) * 104729) >>> 0);
+  return u.vis;
 }
 function turretDefs() { return CB().turrets.types; }
 function turretSlots() {
@@ -387,6 +395,7 @@ function makePlayerUnit(card) {
     hp, maxHp: hp, dmg, heal, speed: A.speed * mult(p, 'speed'),
     range: A.range, interval: A.atk_interval, cd: A.atk_interval * 0.5,
     sizeMult: A.size * (m.size || 1), trait: m.trait || null,
+    foeN: (B.foeCount = (B.foeCount || 0) + 1),
     kills: 0, alphaStacks: 0, dots: [], slowT: 0, slowPct: 0, frozenT: 0,
     flash: 0, pose: 'walk', dead: false, deadT: 0, boss: false
   };
@@ -413,6 +422,7 @@ function makeEnemyUnit(archId, opts = {}) {
     hp, maxHp: hp, dmg: (A.dmg || 0) * dmgMult, heal: (A.heal || 0) * hpMult,
     speed: A.speed, range: A.range, interval: A.atk_interval, cd: A.atk_interval * 0.5,
     sizeMult: A.size * (boss ? CB().combat.boss_size_mult : 1), trait: null,
+    foeN: (B.foeCount = (B.foeCount || 0) + 1),
     kills: 0, alphaStacks: 0, dots: [], slowT: 0, slowPct: 0, frozenT: 0,
     flash: 0, pose: 'walk', dead: false, deadT: 0, boss
   };
@@ -1448,7 +1458,7 @@ function drawUnit(g, u, p) {
   g.save();
   if (dying) g.globalAlpha = Math.max(0, 1 - u.deadT / CB().combat.death_fade_sec);
   else groundShadow(g, p.px, p.py, size * 0.5);
-  const visual = u.side === 'p' ? B.visual : B.enemyVisual;
+  const visual = u.side === 'p' ? B.visual : foeVisual(u);
   const tint = u.side === 'p' ? B.st.palette.tint : B.fac.tint;
   try {
     drawCreature(g, visual, {
