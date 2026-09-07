@@ -1,5 +1,6 @@
 // Fonctions de progression partagees entre modes. Respecte le triple moteur :
-// - addStagePoints : SEULE porte vers le moteur vertical (appelee uniquement par la Bataille mode Defense), plafonnee/jour.
+// - addStagePoints : porte vers le moteur vertical, plafonnee/jour. Deux appelants : le Rituel
+//   (economy.js, journee parfaite ou validee) et la Bataille mode Defense. Le Rituel passe en premier.
 // - grant : monnaies horizontales (genes, biomasse, materiaux, rubis) — jamais d'Elan ici.
 import { config } from './config.js';
 import { state, save } from './state.js';
@@ -27,13 +28,15 @@ export function spend(res) {
 }
 export function canAfford(res) { return Object.entries(res).every(([k, v]) => (state.wallet[k] || 0) >= v); }
 
-export function addStagePoints(n) {
+export function addStagePoints(n, opts = {}) {
   const today = dayKey(); const b = state.battle;
   if (b.stagePointsDay !== today) { b.stagePointsDay = today; b.stagePointsToday = 0; }
   const cap = config.stages.stage_points_daily_cap;
   const allowed = Math.max(0, Math.min(n, cap - b.stagePointsToday));
   b.stagePointsToday += allowed; state.species.stagePoints += allowed;
-  if (allowed > 0) toast(`+${allowed} Points de Stade`, 'green');
+  // opts.silent : le Rituel annonce lui-meme ses Points de Stade dans la modale de recolte.
+  if (opts.silent) { /* pas de toast */ }
+  else if (allowed > 0) toast(`+${allowed} Points de Stade`, 'green');
   else if (n > 0) toast('Plafond de Points de Stade atteint pour aujourd\'hui', '');
   save(); bus.emit('stagepoints:changed');
   return allowed;

@@ -78,8 +78,8 @@ export function tickColony() {
   if (elapsed < 0) elapsed = 0;
 
   // Plafond de cumul hors-ligne (bonus offline_bonus du genome + batiment special).
-  const capH = (state.streak.shields > 0 ? C().offline_hours_shield : C().offline_hours)
-    * mult(speciesMods(), 'offline_bonus');
+  // Il ne depend plus des Boucliers de serie : depenser un bouclier ne doit pas punir la Colonie.
+  const capH = C().offline_hours * mult(speciesMods(), 'offline_bonus');
   const capMs = capH * MS_H;
   const longAbsence = elapsed > OFFLINE_REPORT_MIN_MS;
   const credited = Math.min(elapsed, capMs);

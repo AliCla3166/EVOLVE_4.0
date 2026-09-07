@@ -1,5 +1,6 @@
 // La Bataille — couloir horizontal facon We Are Warriors.
-// Trois terrains : campaign (base contre base), defense (vagues, SEULE source de Points de Stade), raid (butin).
+// Trois terrains : campaign (base contre base), defense (vagues, source de Points de Stade
+// COMPLEMENTAIRE du Rituel), raid (butin).
 // Zero nombre d'equilibrage en dur : tout vient de config.battle / config.cards / config.stages.
 import { config, stageOf } from '../core/config.js';
 import { state, save } from '../core/state.js';
@@ -42,6 +43,10 @@ const CB = () => config.battle;
 const CC = () => config.cards;
 function stageNum() { return state.species.stage; }
 function stageDef() { return stageOf(stageNum()); }
+// Plafond de vague en Defense : la difficulte ne monte plus toute seule a l'infini, elle monte
+// quand la Lignee monte. Sans ce plafond, +6 vagues par jour contre une croissance geometrique
+// rendait le mode injouable en ~2 semaines — et coupait le seul pont vers les Points de Stade.
+function defenseWaveCap() { const D = CB().defense; return D.wave_cap_base + D.wave_cap_per_stage * (stageNum() - 1); }
 function cardDef(id) { return CC().cards.find(c => c.id === id) || null; }
 function deckIds() {
   const d = state.cards.deck;
@@ -90,8 +95,11 @@ function renderMenu() {
 
   // --- Defense
   const sp = stagePointsRemainingToday();
-  ROOT.append(modeCard('🛡️', 'Défense', `Vague ${b.defenseWave} · ${sp} Point${sp > 1 ? 's' : ''} de Stade restant${sp > 1 ? 's' : ''} aujourd'hui`,
-    sp > 0 ? 'La seule source de Points de Stade.' : 'Plafond du jour atteint — tu peux jouer, sans progression verticale.',
+  const wcap = defenseWaveCap();
+  const startWave = Math.min(b.defenseWave, wcap);
+  ROOT.append(modeCard('🛡️', 'Défense', `Vague ${startWave} / ${wcap} · ${sp} Point${sp > 1 ? 's' : ''} de Stade restant${sp > 1 ? 's' : ''} aujourd'hui`,
+    sp > 0 ? `Complète les Points de Stade du Rituel. Plafond de vague ${wcap} au stade ${stageNum()} ; une défaite recule de ${CB().defense.wave_loss_setback}.`
+      : 'Plafond du jour atteint — tu peux jouer, sans progression verticale.',
     () => startBattle({ mode: 'defense' })));
 
   // --- Raid
@@ -114,6 +122,12 @@ function renderMenu() {
   };
   rebuildPeril();
   ROOT.append(panel('💀 Péril du Raid', perilRow));
+
+  // La conversion de biomasse etait invisible et quasi nulle (100 pour +2 rations) : elle est
+  // maintenant plafonnee, rentable, et annoncee avant d'entrer.
+  const RB = CB().ration;
+  ROOT.append(h('p', { class: 'muted small', style: { margin: '2px 0 8px' } },
+    `Chaque sortie convertit jusqu'à ${RB.start_biomasse_max} 🍖 en ration de départ (+${RB.start_bonus_per_biomasse} ration par 🍖).`));
 
   // --- Tourelles
   ROOT.append(renderTurrets());
@@ -234,9 +248,12 @@ function startBattle(opts) {
   const unitCards = ids.map(cardDef).filter(c => c && c.kind === 'unit');
 
   // Biomasse convertie en ration de depart
-  const bio = Math.min(state.wallet.biomasse, 100);
+  const bio = Math.floor(Math.min(state.wallet.biomasse, R.start_biomasse_max));
   let startBonus = Math.min(R.start_bonus_max, bio * R.start_bonus_per_biomasse);
-  if (bio > 0) { state.wallet.biomasse -= bio; save(); CTX.refreshWallet(); }
+  if (bio > 0) {
+    state.wallet.biomasse -= bio; save(); CTX.refreshWallet();
+    toast(`−${bio} 🍖 → +${Math.round(startBonus)} rations de départ`, 'gold');
+  }
 
   const baseHp = CB().base.hp_base + CB().base.hp_per_stage * (stageNum() - 1);
   const fac = currentFaction();
@@ -268,7 +285,7 @@ function startBattle(opts) {
     drawPile: [], hand: [],
     cardsPlayed: 0, freeCards: 0,
     killsByCard: {}, totalKills: 0,
-    wave: mode === 'defense' ? state.battle.defenseWave : 0,
+    wave: mode === 'defense' ? Math.min(state.battle.defenseWave, defenseWaveCap()) : 0,
     wavesHeld: 0, waveT: 0, waveQueue: [], waveSpawned: 0,
     over: false, result: null,
     powers: CB().powers.list.filter(p => p.min_stage <= stageNum()).map(p => ({ def: p, cd: 0 })),
@@ -380,7 +397,7 @@ function makeEnemyUnit(archId, opts = {}) {
     hpMult = B.peril.hp_mult; dmgMult = B.peril.hp_mult;
   } else if (B.mode === 'defense') {
     hpMult = Math.pow(CB().defense.enemy_hp_growth, B.wave - 1);
-    dmgMult = Math.pow(CB().campaign.enemy_dmg_growth, B.wave - 1);
+    dmgMult = Math.pow(CB().defense.enemy_dmg_growth, B.wave - 1);
   }
   const boss = !!opts.boss;
   if (boss) hpMult *= CB().defense.boss_hp_mult;
@@ -915,7 +932,9 @@ function updateEnemyAI(dt) {
 function prepareWave(n) {
   const D = CB().defense;
   const rng = makeRng('wave' + n);
-  const count = Math.max(1, Math.round(D.enemy_count_base + D.enemy_count_growth * n));
+  // Borne haute : au-dela, la vague devient illisible a l'ecran et impossible a intercepter
+  // avec les 4 a 13 unites autorisees sur le terrain.
+  const count = Math.max(1, Math.min(D.enemy_count_max, Math.round(D.enemy_count_base + D.enemy_count_growth * n)));
   const ids = Object.keys(CB().archetypes).filter(k => !k.startsWith('_'));
   const q = [];
   const boss = n % D.boss_every === 0;
@@ -962,7 +981,8 @@ function awardWave() {
     B.pendingStagePoints = (B.pendingStagePoints || 0) + D.stage_points_per_wave;
     B.pendingGenes = (B.pendingGenes || 0) + D.genes_per_wave;
     B.pendingBio = (B.pendingBio || 0) + D.biomasse_per_wave;
-    state.battle.defenseWave = Math.max(state.battle.defenseWave, B.wave + 1);
+    // Borne par le plafond du stade : une valeur heritee trop haute redescend d'elle-meme ici.
+    state.battle.defenseWave = Math.min(defenseWaveCap(), Math.max(state.battle.defenseWave, B.wave + 1));
     state.battle.records.defenseWave = Math.max(state.battle.records.defenseWave || 0, B.wave);
     progressContract('defense_waves', 1);
   }
@@ -1009,6 +1029,14 @@ function endBattle(result) {
       lines.push(`+${Math.round(B.pendingGenes || 0)} 🧬  +${Math.round(B.pendingBio || 0)} 🍖`);
     }
     lines.push(`${B.wavesHeld} vague(s) tenue(s)`);
+    // Recul en cas de defaite : le mode se re-equilibre tout seul au lieu de se verrouiller.
+    if (result === 'defeat') {
+      const back = CB().defense.wave_loss_setback || 0;
+      if (back > 0 && state.battle.defenseWave > 1) {
+        state.battle.defenseWave = Math.max(1, state.battle.defenseWave - back);
+        lines.push(`La Défense repart à la vague ${state.battle.defenseWave}.`);
+      }
+    }
     if (rewardsExhausted()) lines.push('Récompenses du jour épuisées — reviens demain.');
   } else if (mode === 'raid' && result === 'victory') {
     const L = CB().raid.loot;

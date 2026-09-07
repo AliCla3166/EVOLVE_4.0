@@ -63,10 +63,18 @@
     "work_hours_threshold": 2.0
   },
   "streak": {
-    "_comment": "13 paliers 7j -> 90j, bonus en % d'Elan du jour. Un jour manque consomme un Bouclier s'il y en a.",
+    "_comment": "13 paliers 7j -> 90j, bonus en % d'Elan du jour. Boucliers : +1 tous les shield_every_days jours de serie, plafonne a shield_max. Une absence est absorbee ENTIEREMENT si on a assez de boucliers, sinon aucun n'est depense (on ne brule pas un bouclier pour une serie qui casse de toute facon).",
     "tiers": [7, 10, 14, 18, 22, 27, 33, 40, 48, 57, 67, 78, 90],
     "bonus_percent": [5, 7, 9, 11, 13, 15, 18, 21, 24, 27, 30, 35, 40],
-    "rubis_at_tier": 1
+    "rubis_at_tier": 1,
+    "shield_every_days": 14,
+    "shield_max": 3
+  },
+  "stage_points": {
+    "_comment": "Points de Stade verses par le RITUEL — le moteur vertical est finance d'abord par la vie reelle. perfect_day : les 4 piliers valides. valid_day : au moins min_pillars piliers. La Defense complete jusqu'au plafond quotidien (stages.json > stage_points_daily_cap) ; une journee saisie en retard compte aussi, dans la limite du plafond du jour de saisie.",
+    "perfect_day": 6,
+    "valid_day": 3,
+    "min_pillars": 2
   },
   "axis_points": {
     "_comment": "Points d'axe du genome verses par jour : total Elan de l'axe / diviseur. Un draft de Mutation se declenche chaque fois qu'un axe franchit un seuil (mutation_threshold, croissant x1.4 par mutation prise sur cet axe).",

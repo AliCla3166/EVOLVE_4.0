@@ -1,5 +1,5 @@
 {
-  "_comment": "La Bataille (couloir facon We Are Warriors). Tous les nombres d'equilibrage vivent ici. 3 terrains : campaign (base contre base, niveaux), defense (vagues contre ta base — SEULE source de Points de Stade, plafonnes/jour), raid (attaque pure, butin, 100% horizontal). Les unites sont des individus de TA race : archetypes ci-dessous, stats multipliees par le genome (stages.json axes) et les batiments speciaux de la Colonie. Le cout d'invocation = calcule automatiquement depuis le budget de stats (cost_formula).",
+  "_comment": "La Bataille (couloir facon We Are Warriors). Tous les nombres d'equilibrage vivent ici. 3 terrains : campaign (base contre base, niveaux), defense (vagues contre ta base — source de Points de Stade COMPLEMENTAIRE du Rituel, plafonnes/jour, difficulte bornee par le stade), raid (attaque pure, butin, 100% horizontal). Les unites sont des individus de TA race : archetypes ci-dessous, stats multipliees par le genome (stages.json axes) et les batiments speciaux de la Colonie. Le cout d'invocation = calcule automatiquement depuis le budget de stats (cost_formula).",
   "lane": {
     "length": 1200,
     "base_x_player": 60,
@@ -10,7 +10,8 @@
     "start": 20,
     "rate_per_sec": 1.6,
     "max": 120,
-    "start_bonus_per_biomasse": 0.02,
+    "start_biomasse_max": 30,
+    "start_bonus_per_biomasse": 0.4,
     "start_bonus_max": 30
   },
   "hand": {
@@ -348,11 +349,16 @@
     "boss_every": 10
   },
   "defense": {
-    "_comment": "Vagues contre ta base. Points de Stade : stage_points_per_wave, plafonne par jour (stages.json). Apercu deterministe par numero de vague. Boss toutes les 5 vagues. Auto-resolution honorable si absent : la vague est perdue sans penalite.",
+    "_comment": "Vagues contre ta base. Points de Stade : stage_points_per_wave, plafonne par jour (stages.json) et COMPLEMENTAIRE du Rituel (habits.json > stage_points). Apercu deterministe par numero de vague. Boss toutes les 5 vagues. IMPORTANT : la difficulte est bornee par un PLAFOND DE VAGUE lie au stade (wave_cap_base + wave_cap_per_stage x (stade-1)) — sans ce plafond, +6 vagues par jour contre une croissance exponentielle rendait la Defense injouable en deux semaines et coupait le seul moteur vertical. Une defaite fait reculer de wave_loss_setback vagues : le mode se re-equilibre tout seul.",
     "wave_duration_sec": 40,
     "enemy_count_base": 4,
     "enemy_count_growth": 0.6,
-    "enemy_hp_growth": 1.08,
+    "enemy_count_max": 16,
+    "enemy_hp_growth": 1.035,
+    "enemy_dmg_growth": 1.025,
+    "wave_cap_base": 12,
+    "wave_cap_per_stage": 8,
+    "wave_loss_setback": 3,
     "stage_points_per_wave": 2,
     "genes_per_wave": 4,
     "biomasse_per_wave": 15,

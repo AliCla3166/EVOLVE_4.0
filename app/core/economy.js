@@ -3,6 +3,7 @@ import { config, allFields } from './config.js';
 import { state, save } from './state.js';
 import { dayKey, addDays, daysBetween } from './clock.js';
 import { bus } from './events.js';
+import { addStagePoints } from './progress.js';
 
 export function scoreField(f, v) {
   if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) return 0;
@@ -119,10 +120,27 @@ export function submitDay(key, entries) {
   if (!rec.late && tier >= 0 && tier > (prev.streakTierAwarded ?? -1) && (state.streak.current === config.habits.streak.tiers[tier])) {
     state.wallet.rubis += config.habits.streak.rubis_at_tier; rec.streakTierAwarded = tier;
   }
+  // Points de Stade du Rituel : le moteur vertical est finance d'abord par la vie reelle.
+  // Idempotent — on ne verse que ce qui n'a pas encore ete verse pour ce jour ; addStagePoints
+  // applique le plafond quotidien, donc re-saisir 5 jours d'un coup ne fait pas exploser le compteur.
+  const SP = config.habits.stage_points || {};
+  const spTarget = sc.perfect ? (SP.perfect_day || 0)
+    : (sc.pillars.length >= (SP.min_pillars ?? 2) ? (SP.valid_day || 0) : 0);
+  const spAlready = prev.stagePointsAwarded || 0;
+  const spGranted = spTarget > spAlready ? addStagePoints(spTarget - spAlready, { silent: true }) : 0;
+  rec.stagePointsAwarded = spAlready + spGranted;
+
+  // Bouclier de serie : +1 tous les shield_every_days jours, plafonne. Le filet se recharge.
+  const S = config.habits.streak;
+  if (!rec.late && S.shield_every_days && state.streak.current > 0
+      && state.streak.current % S.shield_every_days === 0 && !rec.shieldAwarded) {
+    if (state.streak.shields < (S.shield_max ?? 3)) state.streak.shields++;
+    rec.shieldAwarded = true;
+  }
   if (!state.sync.queue.includes(key)) state.sync.queue.push(key);
   save();
-  bus.emit('day:submitted', { key, rec, diff, sc });
-  return { rec, diff, sc };
+  bus.emit('day:submitted', { key, rec, diff, sc, spGranted });
+  return { rec, diff, sc, spGranted };
 }
 
 // Jours manques (pas saisis) entre le dernier jour saisi et hier : Ombre + consommation de bouclier.
@@ -135,11 +153,14 @@ export function processMissedDays() {
   for (let k = addDays(last, 1); daysBetween(k, today) >= 1; k = addDays(k, 1)) {
     if (!state.days[k]) missed.push(k);
   }
+  // Le Bouclier absorbe une absence ENTIERE si on en a assez. Sinon on n'en depense aucun :
+  // bruler des boucliers pour une serie qui casse de toute facon serait une double peine.
+  const covered = missed.length > 0 && missed.length <= state.streak.shields;
   const shielded = [];
   for (const k of missed) {
     if (state.days[k]?.missedProcessed) continue;
-    if (missed.length === 1 && state.streak.shields > 0) {
-      // Le Bouclier de serie absorbe UN jour manque isole : la serie tient, pas d'Elan.
+    if (covered && state.streak.shields > 0) {
+      // Le Bouclier de serie absorbe le jour manque : la serie tient, pas d'Elan.
       state.streak.shields--;
       state.days[k] = { entries: {}, elan: 0, shieldUsed: true, submittedAt: Date.now(), late: false, missedProcessed: true };
       shielded.push(k);

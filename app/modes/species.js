@@ -122,7 +122,7 @@ function render() {
   if (!last) {
     const { ok } = canMetamorph();
     root.append(panel(`Vers ${next.icon} ${next.name}`,
-      h('p', { class: 'muted small' }, 'Les Points de Stade viennent uniquement de la Bataille en mode Défense (plafonnés par jour) ; l\'Élan vient de ta vie réelle.'),
+      h('p', { class: 'muted small' }, `Les Points de Stade viennent de ton Rituel (${config.habits.stage_points.perfect_day} par journée parfaite, ${config.habits.stage_points.valid_day} par journée validée) et de la Défense, dans la limite de ${config.stages.stage_points_daily_cap} par jour. L'Élan vient de ta vie réelle.`),
       bar(Math.min(100, sp.stagePoints / next.stage_points_required * 100), { color: 'var(--purple)', label: `${Math.floor(sp.stagePoints)} / ${next.stage_points_required} Points de Stade`, height: 20 }),
       h('div', { style: { height: '8px' } }),
       bar(Math.min(100, state.wallet.elan / next.elan_cost * 100), { color: 'var(--green)', label: `${fmt(Math.floor(state.wallet.elan))} / ${fmt(next.elan_cost)} ⚡`, height: 20 }),

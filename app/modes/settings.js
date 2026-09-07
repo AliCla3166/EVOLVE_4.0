@@ -7,7 +7,12 @@ import { speciesVisual } from '../core/genome.js';
 import { renderToCanvas } from '../render/creature.js';
 
 let ctx, root;
-export function mount(el, c) { ctx = c; root = el; if (c.opts?.onboarding) onboarding(); else render(); }
+export function mount(el, c) {
+  ctx = c; root = el;
+  // Mode developpeur : ?dev=1 dans l'URL, ou 5 tapes sur la ligne de build (panneau A propos).
+  if (location.search.includes('dev=1') && !state.settings.dev) { state.settings.dev = true; save(); }
+  if (c.opts?.onboarding) onboarding(); else render();
+}
 export function unmount() {}
 
 function onboarding() {
@@ -45,10 +50,19 @@ function render() {
     h('div', { class: 'row gap wrap' }, btn('Exporter', { size: 'sm', onClick: () => { const blob = new Blob([exportJSON()], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: `evolve-save-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(a); a.click(); a.remove(); } }),
       btn('Importer', { size: 'sm', onClick: () => { const inp = h('input', { type: 'file', accept: 'application/json' }); inp.addEventListener('change', async () => { const f = inp.files[0]; if (!f) return; try { importJSON(await f.text()); toast('Sauvegarde importée', 'green'); location.reload(); } catch (e) { toast('Fichier invalide', 'red'); } }); inp.click(); } }),
       btn('Tout effacer', { size: 'sm', kind: 'red', onClick: async () => { if (await confirmModal('Effacer toute la partie ?', 'Irréversible. Exporte d\'abord si tu veux garder une trace (Notion, elle, garde tout).', 'Effacer', 'red')) { reset(); location.reload(); } } }))));
-  // Triche de test (utile pour verifier le jeu) — gardee visible mais explicite
-  root.append(panel('Bac à sable', h('p', { class: 'muted small' }, 'Pour tester sans attendre demain. N\'écrit rien dans Notion.'),
+  // Triche de test : MASQUEE par defaut. Sur un jeu dont tout l'interet est que les chiffres
+  // soient merites, ce panneau ne doit pas etre a portee de pouce. Activation : ?dev=1, ou
+  // 5 tapes sur la ligne de build dans A propos.
+  if (state.settings.dev) root.append(panel('Bac à sable', h('p', { class: 'muted small' }, 'Pour tester sans attendre demain. N\'écrit rien dans Notion.'),
     h('div', { class: 'row gap wrap' }, btn('+500 ⚡', { size: 'sm', onClick: () => { state.wallet.elan += 500; save(); ctx.refreshWallet(); } }), btn('+200 🧬 🍖 🧱', { size: 'sm', onClick: () => { state.wallet.genes += 200; state.wallet.biomasse += 200; state.wallet.materiaux += 200; save(); ctx.refreshWallet(); } }), btn('+50 Points de Stade', { size: 'sm', onClick: () => { state.species.stagePoints += 50; save(); toast('+50 Points de Stade (test)'); } }), btn('+20 sur chaque axe', { size: 'sm', onClick: () => { for (const ax of config.stages.axes.order) state.species.axes[ax] += 20; save(); import('./species.js').then(m => { const n = m.checkDrafts(); toast(`${n.length} draft(s) créé(s)`); }); } }))));
-  root.append(panel('À propos', h('p', { class: 'muted small' }, `EVOLVE 4.0 « Lignée » · build ${window.EVOLVE_VERSION} · tout l'équilibrage vit dans data/*.json.`), h('p', { class: 'muted small' }, 'Installer : Chrome Android → menu ⋮ → « Ajouter à l\'écran d\'accueil ». Sur iPhone : Partager → « Sur l\'écran d\'accueil ».'), btn('Retour au jeu', { kind: 'green', size: 'block', onClick: () => ctx.navigate('ritual') })));
+  const buildLine = h('p', { class: 'muted small' }, `EVOLVE 4.0 « Lignée » · build ${window.EVOLVE_VERSION} · tout l'équilibrage vit dans data/*.json.`);
+  let devTaps = 0;
+  buildLine.addEventListener('click', () => {
+    if (++devTaps < 5) return;
+    devTaps = 0; state.settings.dev = !state.settings.dev; save(true);
+    toast(state.settings.dev ? 'Bac à sable activé' : 'Bac à sable masqué', 'gold'); render();
+  });
+  root.append(panel('À propos', buildLine, h('p', { class: 'muted small' }, 'Installer : Chrome Android → menu ⋮ → « Ajouter à l\'écran d\'accueil ». Sur iPhone : Partager → « Sur l\'écran d\'accueil ».'), btn('Retour au jeu', { kind: 'green', size: 'block', onClick: () => ctx.navigate('ritual') })));
 }
 function editHabits() {
   const ta = h('textarea', { class: 'txt mono' }, state.settings.habitsOverride || JSON.stringify(config.habits, null, 2));

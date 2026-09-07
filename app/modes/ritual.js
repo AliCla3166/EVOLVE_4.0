@@ -127,7 +127,7 @@ function renderField(f) {
 
 async function harvest(button) {
   const key = selectedKey; const wasDone = !!state.days[key]?.submittedAt;
-  const { rec, diff, sc } = submitDay(key, entries);
+  const { rec, diff, sc, spGranted } = submitDay(key, entries);
   delete state.ritualDrafts[key];
   if (!wasDone && key === dayKey()) progressContract('ritual', 1);
   save();
@@ -136,10 +136,10 @@ async function harvest(button) {
   const n = Math.min(8, Math.max(1, Math.round(Math.abs(diff) / 20)));
   for (let i = 0; i < n; i++) setTimeout(() => floatBubble(`+${Math.round(diff / n)}`, button, '#w-elan'), i * 90);
   const drafts = checkDrafts();
-  setTimeout(() => showSummary(rec, diff, sc, drafts, wasDone), 700);
+  setTimeout(() => showSummary(rec, diff, sc, drafts, wasDone, spGranted), 700);
   render();
 }
-function showSummary(rec, diff, sc, drafts, wasDone) {
+function showSummary(rec, diff, sc, drafts, wasDone, spGranted = 0) {
   const H = config.habits; const A = config.stages.axes;
   const axes = h('div', { class: 'row wrap gap', style: { justifyContent: 'center' } });
   for (const ax of A.order) { const v = sc.axisPoints[ax] || 0; if (v > 0) axes.append(h('span', { class: 'mut-tag', style: { borderColor: A[ax].color } }, `${A[ax].icon} +${fmt(v)}`)); }
@@ -148,6 +148,7 @@ function showSummary(rec, diff, sc, drafts, wasDone) {
     h('div', { class: 'big' }, `${diff >= 0 ? '+' : ''}${diff} ⚡`),
     h('p', { class: 'muted' }, rec.late ? 'Saisie en retard : payée, série non tenue.' : sc.perfect ? '🌟 Journée parfaite — les 4 piliers validés !' : `${sc.pillars.length}/4 piliers validés`),
     rec.streakBonusPct ? h('p', { class: 'small', style: { color: 'var(--gold)' } }, `Bonus de série +${rec.streakBonusPct} %`) : null,
+    spGranted ? h('p', { class: 'small', style: { color: 'var(--purple)' } }, `+${spGranted} Point${spGranted > 1 ? 's' : ''} de Stade — la Métamorphose approche`) : null,
     h('p', { class: 'small muted' }, 'Points de génome'), axes,
     drafts.length ? h('p', { style: { color: 'var(--purple)', marginTop: '10px' } }, `🧬 ${drafts.length} mutation${drafts.length > 1 ? 's' : ''} à choisir dans Espèce !`) : null,
     h('div', { class: 'row gap center', style: { marginTop: '12px' } }, btn('Fermer', { onClick: () => m.close() }), drafts.length ? btn('Voir l\'Espèce', { kind: 'purple', onClick: () => { m.close(); ctx.navigate('species'); } }) : null)

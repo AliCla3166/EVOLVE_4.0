@@ -86,7 +86,7 @@ Chaque jour validé verse des **points d'axe** ; à chaque seuil, une **Mutation
 - Produit **Biomasse** (ration de bataille) et **Matériaux** (tourelles, murailles), débloque des recherches.
 
 ### 3.4 La Bataille — lane TD façon We Are Warriors
-- Couloir horizontal, ta base à gauche, l'ennemie à droite, unités qui marchent et se tapent, ration qui monte, invocation par cartes. Trois terrains : **Campagne** (base contre base, ~40 niveaux/stade, rotation de faction tous les 10), **Défense** (vagues contre ta base — **seule source de Points de Stade**, plafonnée/jour), **Raid** (attaque pure, butin, 100 % horizontal).
+- Couloir horizontal, ta base à gauche, l'ennemie à droite, unités qui marchent et se tapent, ration qui monte, invocation par cartes. Trois terrains : **Campagne** (base contre base, ~40 niveaux/stade, rotation de faction tous les 10), **Défense** (vagues contre ta base — source de Points de Stade **complémentaire du Rituel**, plafonnée/jour, difficulté bornée par le stade — voir amendement du 07/09/2026), **Raid** (attaque pure, butin, 100 % horizontal).
 - Couche fixe : 4 slots de tourelles/murailles/pièges achetés avec les Matériaux de la Colonie.
 - Ordres par unité (tenir / attaquer), ciblage (proche / faible / fort / une fois par ennemi). Boss toutes les 5 vagues. Auto-résolution honorable si tu n'es pas là.
 - Ennemis : factions procédurales elles aussi (autres lignées de l'univers) — même moteur de rendu, autre génome.
@@ -101,7 +101,7 @@ Chaque jour validé verse des **points d'axe** ; à chaque seuil, une **Mutation
 **Expédition** (run auto-battler 3 min façon Vampire Survivors : ta créature seule, vagues, drafts de mutations temporaires — records + fragments plafonnés), **Pêche génétique** (mini-jeu d'adresse qui remonte des séquences), **Worldbox avancé** (catastrophes, dieux rivaux), skins d'époque (les 17 ères).
 
 ## 4. Triple moteur — inchangé, réaffirmé
-1. **Vertical** (sacré, plafonné) : Élan, points d'axe, Points de Stade, stades, Cycles. Financé par la vie réelle. Seul pont depuis le jeu : la **Défense**.
+1. **Vertical** (sacré, plafonné) : Élan, points d'axe, Points de Stade, stades, Cycles. Financé par la vie réelle. Le **Rituel** en est la source principale (6 Points de Stade pour une journée parfaite, 3 pour une journée validée) ; la **Défense** complète jusqu'au plafond quotidien. *(Amendé le 07/09/2026 — voir §11.)*
 2. **Campagne** (compétence) : niveaux, factions, cartes, XP.
 3. **Horizontal** (illimité) : Raid, collection, éditions, Codex, records, cosmétiques.
 Aucun temps d'écran n'achète un stade. Aucune vie réelle n'achète un niveau de Campagne.
@@ -152,4 +152,19 @@ Règles non négociables reprises de 3.0 : moteur ignorant du contenu, zéro nom
 Critère de passage : « j'ai envie de l'ouvrir demain », pas « ça marche ».
 
 ## 10. Décisions tranchées le 04/09/2026
-Fiction = Lignée procédurale en 10 stades + Nouveau Cycle · Plateforme = PWA puis APK · Godot 3.0 figé en référence · brief journalier = `habits.json` (éditable in-app) · le génome à 6 axes est le pont vie réelle → visuel · Défense = seule source de Points de Stade · le nom reste **EVOLVE**.
+Fiction = Lignée procédurale en 10 stades + Nouveau Cycle · Plateforme = PWA puis APK · Godot 3.0 figé en référence · brief journalier = `habits.json` (éditable in-app) · le génome à 6 axes est le pont vie réelle → visuel · Défense = seule source de Points de Stade *(révoqué le 07/09/2026, voir §11)* · le nom reste **EVOLVE**.
+
+---
+
+## 11. Amendement du 07/09/2026 — après diagnostic du code livré
+
+Six correctifs appliqués au dépôt à la suite d'un diagnostic complet du build. Ils ne changent ni la fiction, ni la DA, ni l'architecture ; ils corrigent des chiffres et deux règles qui empêchaient le jeu de tenir sa propre promesse.
+
+1. **La Défense ne se verrouille plus.** Le constat : `defenseWave` montait de +6 par jour sans jamais redescendre, contre des PV ennemis en 1,08^vague — la Défense devenait injouable entre le 8ᵉ et le 15ᵉ jour, et comme elle était le seul pont vers les Points de Stade, le moteur vertical s'arrêtait définitivement. Correctifs : **plafond de vague lié au stade** (`wave_cap_base` 12 + `wave_cap_per_stage` 8 par stade), croissance ramenée à 1,035 PV / 1,025 dégâts, nombre d'ennemis borné à 16 par vague, et **recul de 3 vagues en cas de défaite** — le mode trouve tout seul le niveau réel du joueur. La difficulté ne monte plus avec le calendrier, elle monte avec la Lignée.
+2. **Le Rituel finance le moteur vertical.** Journée parfaite = 6 Points de Stade, journée validée (≥ 2 piliers) = 3, dans la limite du plafond quotidien de 12. La Défense complète le reste. Le pitch — « prends soin de toi et regarde ta Lignée évoluer » — redevient littéralement vrai : on peut progresser sans jamais ouvrir la Bataille, deux fois plus vite en y jouant. Idempotent, et une journée saisie en retard compte aussi.
+3. **La biomasse n'est plus brûlée pour rien.** L'ancienne conversion prenait jusqu'à 100 🍖 pour +2 rations (1,25 seconde de régénération) : toute la production de la Colonie s'évaporait, sans le moindre affichage. Désormais : prélèvement plafonné à 30 🍖, +0,4 ration par 🍖 (soit +12 rations, plus d'une demi-invocation), annoncé dans le menu de Bataille et par un toast au lancement.
+4. **Rythme des stades recalibré.** L'ancien barème demandait 8 500 Points de Stade et 124 800 ⚡ — 708 jours au plafond absolu, 175 jours rien que pour le dernier stade. Nouveau calibrage sur une hypothèse **réaliste** (8 Points de Stade et 95 ⚡ nets par jour, une fois la Colonie servie) : première métamorphose à ~14 jours, puis 28 → 76 jours par stade, ~15 mois pour une Lignée complète (~10 mois en jeu parfait).
+5. **Le filet de série se recharge.** +1 Bouclier tous les 14 jours de série, plafond 3. Une absence est absorbée **entièrement** si l'on a assez de boucliers ; sinon aucun n'est dépensé — brûler un bouclier pour une série qui casse de toute façon était une double peine. Et le cumul hors-ligne de la Colonie ne dépend plus des boucliers (12 h en base) : protéger sa série ne doit pas punir sa Colonie.
+6. **Le Bac à sable est masqué.** Sur un jeu dont tout l'intérêt est que les chiffres soient mérités, le panneau de triche ne doit pas être à portée de pouce. Activation : `?dev=1` dans l'URL, ou cinq tapes sur la ligne de build dans Réglages → À propos.
+
+Restent ouverts, non traités ici : notification quotidienne (le déclencheur manque toujours), écran de retour après absence, Ombre rendue lisible, Codex qui cite le moment fort, réduction du Rituel à 6-8 champs, `tools/simulate.py`.

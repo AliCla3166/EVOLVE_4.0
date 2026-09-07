@@ -12,7 +12,7 @@
 ## Décisions verrouillées
 
 ### Héritées (v2/3.0), toujours valables
-Barème d'habitudes v2 (journée parfaite ~166 ⚡, plafond 293) + commentaire +8 / moment fort +4 / humeur +2 · on baisse le prix, jamais on gonfle le gain · aucune progression ne se termine · verrou des doublons · éditions orthogonales à la rareté · jour en retard payé mais série non tenue · deadline 5 h, fenêtre 7 jours · rubis rares sans achat réel · triple moteur étanche · Défense = seule source de points verticaux (ici : Points de Stade) · Raid 100 % horizontal · pas de FOMO · le nom reste EVOLVE · Ali n'aime pas les QCM techniques en cours de travail.
+Barème d'habitudes v2 (journée parfaite ~166 ⚡, plafond 293) + commentaire +8 / moment fort +4 / humeur +2 · on baisse le prix, jamais on gonfle le gain · aucune progression ne se termine · verrou des doublons · éditions orthogonales à la rareté · jour en retard payé mais série non tenue · deadline 5 h, fenêtre 7 jours · rubis rares sans achat réel · triple moteur étanche · Défense = seule source de points verticaux (ici : Points de Stade) — **révoqué le 07/09/2026 : le Rituel en est désormais la source principale** · Raid 100 % horizontal · pas de FOMO · le nom reste EVOLVE · Ali n'aime pas les QCM techniques en cours de travail.
 
 ### Nouvelles (04/09/2026)
 - **Fiction** : la Lignée, 10 stades Cellule → Divinité, Nouveau Cycle (prestige : Panthéon = bénédictions permanentes). Les ères historiques = skins futurs.
@@ -42,3 +42,22 @@ L'accès GitHub et le `teamId` Vercel de la session Cowork étant tous deux inut
 8. Porter `tools/economy/model.py` de v2 en `tools/simulate.py` pour resimuler Colonie + stades (cible 1-3 mois/stade).
 9. Mettre à jour la page Notion « 🚀 Initialisation Evolve » (toujours sur l'état v2).
 10. Hérités : sort de Walachie (v2) non tranché ; PixelLab vs Ideogram sans objet en 4.0 (rendu procédural).
+
+## Équilibrage du 07/09/2026 — après diagnostic complet du build
+
+Diagnostic du dépôt (commit `a33a21b`) lu intégralement, puis six correctifs appliqués et vérifiés en navigateur headless. Détail et justification : GDD 4.0 §11.
+
+| # | Problème constaté dans le code | Correctif |
+|---|---|---|
+| 1 | `defenseWave` +6/jour sans retour possible × PV ennemis 1,08^vague → Défense injouable en 8-15 jours, donc **plus aucun Point de Stade, définitivement** | Plafond de vague `12 + 8 × (stade−1)`, croissance 1,035 PV / 1,025 dégâts, 16 ennemis max par vague, recul de 3 vagues en cas de défaite |
+| 2 | Les Points de Stade ne venaient que de la Défense : la vie réelle ne payait jamais l'évolution | Rituel : 6 Points de Stade (journée parfaite) / 3 (≥ 2 piliers), plafond quotidien inchangé à 12 |
+| 3 | Chaque bataille consommait jusqu'à 100 🍖 pour +2 rations, sans affichage | Prélèvement plafonné à 30 🍖, +0,4 ration par 🍖, annoncé dans le menu et par un toast |
+| 4 | 8 500 Points de Stade et 124 800 ⚡ au total (708 jours au plafond absolu, 175 jours pour le seul stade 10) | 3 570 Points de Stade / 42 100 ⚡ : ~14 j pour la première métamorphose, 28 → 76 j par stade, ~15 mois au total |
+| 5 | 1 seul Bouclier, jamais régénéré, n'absorbant qu'un jour isolé, et le dépenser rabotait le cumul hors-ligne de la Colonie (12 h → 8 h) | +1 Bouclier tous les 14 jours (max 3), absorption d'une absence entière ou d'aucun jour, cumul hors-ligne fixé à 12 h et découplé |
+| 6 | Panneau de triche « Bac à sable » visible en production | Masqué ; activation par `?dev=1` ou 5 tapes sur la ligne de build (À propos) |
+
+Vérifications passées : journée parfaite → +6 Points de Stade affichés dans la modale de récolte ; re-soumission idempotente (aucun double versement) ; journée à 2 piliers → +3 ; série 13 → 14 → +1 Bouclier ; 2 jours manqués avec 2 boucliers → absence couverte, série tenue ; 2 jours manqués avec 1 bouclier → aucun bouclier gâché ; sauvegarde héritée à `defenseWave = 200` → la Défense se lance à la vague 12 (plafond du stade 1) ; biomasse 60 → 30 avec « −30 🍖 → +12 rations » ; Bac à sable masqué sans `?dev=1`. Aucune erreur JS.
+
+Build passé à `0.2.0` (`index.html`) et cache du service worker à `evolve4-v0.2.0`. Format de sauvegarde inchangé (version 1) : les parties en cours sont conservées, `defenseWave` se re-borne tout seul.
+
+**Non traité dans ce lot** (lot 2 du plan) : notification quotidienne, écran de retour après absence, Ombre rendue lisible, Codex citant le moment fort, Rituel réduit à 6-8 champs, écran « ce qui a changé depuis hier », `tools/simulate.py`.

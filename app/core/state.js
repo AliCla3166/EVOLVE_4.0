@@ -32,7 +32,7 @@ export function defaultState() {
     cards: { collection: {}, deck: [], pity: 0, xp: {} },
     codex: { unlocked: [] },
     sync: { queue: [], endpoint: '', secret: '', enabled: false, lastSync: null, lastError: null },
-    settings: { habitsOverride: null, sound: true, onboarded: false },
+    settings: { habitsOverride: null, sound: true, onboarded: false, dev: false },
     stats: { perfectDays: 0, totalElan: 0, ritualsDone: 0 }
   };
 }
