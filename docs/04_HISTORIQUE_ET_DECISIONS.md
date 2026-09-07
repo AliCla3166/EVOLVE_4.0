@@ -90,3 +90,30 @@ faisait qu'on n'ouvrait pas l'app.
 Vérifié au navigateur (Playwright, 390x844) : onboarding, 8 champs au chargement, récolte qui verse
 Élan + Points de Stade, écran de retour après 4 jours d'absence, citation du Codex, six onglets
 rendus, zéro erreur console.
+
+## 07/09/2026 — Refonte visuelle (en attente de validation)
+
+Direction retenue par Ali : **chunky assumé, beaucoup plus abouti** — on garde les proportions
+We Are Warriors, on ajoute la diversité, l'équipement et l'animation.
+
+- **`app/render/gear.js` (nouveau)** — l'équipement par rôle × palier de stade. Cinq paliers
+  (organique / naturel / taillé / forgé / énergie) pour dix stades : le même archétype porte un
+  aiguillon à la Cellule, des griffes à la Créature, une hache à la Meute, une épée à la Cité, une
+  lame d'énergie chez les Galactiques. Chaque nouveau palier devient une récompense visible de
+  métamorphose.
+- **`app/render/creature.js`** — trois manques comblés : diversité (chaque archétype a des traits
+  propres à TOUS les stades, plus seulement au bipède), équipement visible dès le stade 1, et une
+  animation d'attaque en trois temps (anticipation / frappe / récupération) calée sur l'intervalle
+  d'attaque réel de l'unité via `opts.atk`, au lieu d'un balancement sinusoïdal continu. Ajout des
+  poses de mort et du regard qui vise. La bête du stade 3 a un cou et des pattes épaisses : elle
+  lisait comme une chenille.
+- **`app/render/buildings.js` (nouveau)** — douze monuments distincts au lieu de deux dessins,
+  pilotés par la clé `shape` de `data/colony.json`. Variante aquatique sous cloche pour les stades
+  1-2, fondations et étais pendant un chantier.
+- **Tourelles** — `data/battle.json > turrets.layout` les répartit en arc autour du Bastion (deux
+  de chaque côté, les plus éloignées plus écartées) au lieu de les aligner d'un seul côté. Trois
+  silhouettes et trois gestes de tir : bras de baliste qui recule puis claque, pieux qui se
+  referment, orbe qui émet une onde.
+
+Vérifié au navigateur : bataille réelle en stade 5 avec quatre tourelles, zéro erreur console.
+Planche de validation publiée avant mise en production.

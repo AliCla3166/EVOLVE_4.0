@@ -248,11 +248,18 @@
     ]
   },
   "turrets": {
-    "_comment": "Couche fixe (achetee avec Materiaux). 4 slots max. Degats boostes par spec_e de la Colonie.",
+    "_comment": "Couche fixe (achetee avec Materiaux). 4 slots max. Degats boostes par spec_e de la Colonie. \"shape\" = silhouette dessinee dans battle.js (baliste : bras qui recule puis claque ; machoire : pieux au sol qui se referment ; autel : orbe qui pulse et emet une onde). \"layout\" repartit les emplacements EN ARC autour de la base au lieu de les aligner : x_pct = fraction du couloir depuis la base, row = rang lateral (au-dela de lane_half_width, donc hors de la voie de passage).",
     "slots": 4,
+    "layout": [
+      { "x_pct": 0.10, "row": -2.4 },
+      { "x_pct": 0.10, "row": 2.4 },
+      { "x_pct": 0.22, "row": -3.3 },
+      { "x_pct": 0.22, "row": 3.3 }
+    ],
     "types": {
       "tour": {
         "label": "Tour",
+        "shape": "baliste",
         "icon": "🏹",
         "dmg": 12,
         "interval": 1.0,
@@ -262,6 +269,7 @@
       },
       "piege": {
         "label": "Piège",
+        "shape": "machoire",
         "icon": "🪤",
         "dmg": 40,
         "interval": 3.0,
@@ -271,6 +279,7 @@
       },
       "soin": {
         "label": "Autel",
+        "shape": "autel",
         "icon": "💚",
         "heal": 5,
         "interval": 1.0,

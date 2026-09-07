@@ -9,6 +9,7 @@ import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { spend, canAfford, progressContract } from '../core/progress.js';
 import { h, fmt, btn, panel, bar, toast, modal } from '../core/ui.js';
 import { drawCreature, shade } from '../render/creature.js';
+import { drawBuilding as drawBuildingArt } from '../render/buildings.js';
 
 const INK = '#171B23';
 const MS_H = 3600e3;               // millisecondes dans une heure
@@ -464,7 +465,7 @@ function drawMap(t) {
     if (!lvl && !busy) continue;
     const a = -Math.PI / 2 + (def.slot / RING_SLOTS) * Math.PI * 2;
     const x = g.cx + Math.cos(a) * g.rx * 1.18, y = g.cy + Math.sin(a) * g.ry * 1.32;
-    items.push({ y, draw: () => drawBuilding(ctx, x, y, g, p, lvl, busy, t) });
+    items.push({ y, draw: () => drawBuildingArt(ctx, { x, y, s: Math.min(g.w * 0.062, 24), shape: def.shape, level: lvl, busy, t, palette: p, aquatic: isAquatic() }) });
   }
   const visual = speciesVisual();
   for (const wk of walkers) items.push({ y: wk.y, draw: () => drawCreature(ctx, visual, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' }) });
@@ -570,40 +571,3 @@ function drawCore(ctx, g, p, t) {
   ctx.fillStyle = '#F4F1E8'; ctx.fillText(label, x, y + r + 12);
 }
 
-function drawBuilding(ctx, x, y, g, p, lvl, busy, t) {
-  const s = Math.min(g.w * 0.055, 20);
-  ctx.save();
-  ctx.beginPath(); ctx.ellipse(x, y + s * 0.15, s * 1.05, s * 0.3, 0, 0, 6.28);
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
-  if (isAquatic()) { // dome pour les stades aquatiques
-    ctx.beginPath(); ctx.ellipse(x, y, s, s * 0.95, 0, Math.PI, 0); ctx.closePath();
-    ctx.fillStyle = shade(p.tint, -0.15); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x - s * .3, y - s * .35, s * .16, 0, 6.28);
-    ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fill();
-  } else { // cabane : trapeze + toit
-    ctx.beginPath(); ctx.moveTo(x - s * .8, y); ctx.lineTo(x - s * .62, y - s * .85);
-    ctx.lineTo(x + s * .62, y - s * .85); ctx.lineTo(x + s * .8, y); ctx.closePath();
-    ctx.fillStyle = shade(p.ground, .35); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x - s * .95, y - s * .8); ctx.lineTo(x, y - s * 1.6); ctx.lineTo(x + s * .95, y - s * .8); ctx.closePath();
-    ctx.fillStyle = shade(p.tint, -0.25); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.stroke();
-  }
-  // pastille de niveau
-  if (lvl) {
-    ctx.beginPath(); ctx.arc(x + s * .85, y - s * .1, 8, 0, 6.28);
-    ctx.fillStyle = '#FFC24B'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = INK; ctx.stroke();
-    ctx.font = '400 11px "Lilita One", Arial Black, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#3A2600'; ctx.fillText(String(lvl), x + s * .85, y - s * .05);
-  }
-  // chantier en cours
-  if (busy) {
-    const bob = Math.sin(t * 4) * 3;
-    if (isAquatic()) {
-      ctx.fillStyle = 'rgba(255,255,255,.55)';
-      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x + (i - 1) * 6, y - s * 1.9 - ((t * 18 + i * 12) % 22), 2.5 + i % 2, 0, 6.28); ctx.fill(); }
-    } else {
-      ctx.font = '16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('⚒️', x, y - s * 2.1 + bob);
-    }
-  }
-  ctx.restore();
-}

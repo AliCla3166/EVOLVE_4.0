@@ -312,12 +312,17 @@ function buildTurrets() {
   const slots = turretSlots();
   const types = turretDefs();
   const L = CB().lane;
+  const layout = CB().turrets.layout || [];
   slots.forEach((s, i) => {
     if (!s) return;
     const t = types[s.type];
+    // Les tourelles ne s'alignent plus le long du couloir : elles ceinturent le Bastion,
+    // deux de chaque cote, les plus eloignees plus ecartees (arc de defense).
+    const pos = layout[i] || { x_pct: 0.05 + i * 0.04, row: (i % 2 ? 1 : -1) * (2.3 + Math.floor(i / 2) * 0.9) };
     out.push({
-      type: s.type, def: t, level: s.level, cd: 0,
-      x: L.base_x_player + L.spawn_offset * 0.45 + i * L.spawn_offset * 0.22
+      type: s.type, def: t, level: s.level, cd: 0, fireT: 0, aim: 1,
+      row: pos.row,
+      x: L.base_x_player + CB().lane.length * pos.x_pct
     });
   });
   return out;
@@ -710,6 +715,7 @@ function update(dt) {
   }
   B.units = B.units.filter(u => !u.dead || u.deadT < CB().combat.death_fade_sec);
 
+  for (const tu of B.turrets) if (tu.fireT > 0) tu.fireT = Math.max(0, tu.fireT - dt * 3.2);
   updateTurrets(dt);
   updateProjectiles(dt);
 
@@ -895,13 +901,15 @@ function updateTurrets(dt) {
       t.cd = d.interval;
       const tgt = hurtAllies.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a));
       healUnit(tgt, d.heal * t.level);
+      t.fireT = 1;
     } else {
       const foes = aliveUnits('e').filter(u => Math.abs(u.x - t.x) <= d.range);
       if (!foes.length) continue;
       t.cd = d.interval;
       const tgt = foes.reduce((a, b) => (Math.abs(b.x - t.x) < Math.abs(a.x - t.x) ? b : a));
       hurt(tgt, d.dmg * t.level * boost, null, false);
-      B.projectiles.push({ x: t.x, row: -(CB().view.lane_half_width + 0.8), side: 'p', dmg: 0, from: null, target: tgt, dir: 1, delay: 0, yoff: -14, ghost: true });
+      t.fireT = 1; t.aim = Math.sign(tgt.x - t.x) || 1;
+      B.projectiles.push({ x: t.x, row: t.row, side: 'p', dmg: 0, from: null, target: tgt, dir: 1, delay: 0, yoff: -14, ghost: true });
     }
   }
 }
@@ -1380,18 +1388,57 @@ function drawBase(g, base, color, facing) {
   g.fillText(Math.ceil(base.hp), p.px, by - 4);
 }
 
+// Trois silhouettes distinctes, chacune avec son geste de tir. Une tourelle qui tire doit se voir
+// du premier coup d'oeil : c'est la seule facon de comprendre pourquoi une vague fond ou tient.
 function drawTurrets(g) {
-  // Les tourelles bordent le couloir du cote joueur, en retrait de la voie.
   for (const t of B.turrets) {
-    const p = project(t.x, -(V().lane_half_width + 0.8));
-    const hh = unitRef() * 1.1 * p.s, w = unitRef() * 0.28 * p.s;
-    groundShadow(g, p.px, p.py, w * 1.6);
-    g.beginPath();
-    g.moveTo(p.px - w, p.py); g.lineTo(p.px - w * 0.8, p.py - hh); g.lineTo(p.px + w * 0.8, p.py - hh); g.lineTo(p.px + w, p.py);
-    g.closePath();
-    g.fillStyle = '#7A8598'; g.fill(); g.lineWidth = 4; g.strokeStyle = INK; g.stroke();
-    g.beginPath(); g.arc(p.px, p.py - hh - w * 0.5, w * 0.8, 0, Math.PI * 2);
-    g.fillStyle = t.def.heal ? '#45D95E' : '#E0A045'; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.stroke();
+    const p = project(t.x, t.row);
+    const s = unitRef() * 0.68 * p.s;
+    const lw = Math.max(2, 4 * p.s);
+    const f = t.fireT || 0;
+    groundShadow(g, p.px, p.py, s * 1.3);
+    g.save(); g.translate(p.px, p.py);
+    const shape = t.def.shape || (t.def.heal ? 'autel' : 'baliste');
+    if (shape === 'machoire') {
+      // Pieux au sol : ecartes au repos, ils se referment d'un coup a la frappe.
+      const open = 0.55 - f * 0.5;
+      for (const d of [-1, 1]) {
+        g.save(); g.translate(d * s * 0.5, 0); g.rotate(d * open);
+        g.beginPath(); g.moveTo(-s * 0.22, 0); g.lineTo(0, -s * 1.1); g.lineTo(s * 0.22, 0); g.closePath();
+        g.fillStyle = '#CBD4E0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
+        g.restore();
+      }
+      g.beginPath(); g.ellipse(0, 0, s * 0.9, s * 0.28, 0, 0, 6.28);
+      g.fillStyle = '#4A5468'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
+    } else if (shape === 'autel') {
+      // Autel : socle a gradins, orbe qui flotte, onde verte a chaque soin.
+      g.beginPath(); g.moveTo(-s * 0.8, 0); g.lineTo(-s * 0.55, -s * 0.75); g.lineTo(s * 0.55, -s * 0.75); g.lineTo(s * 0.8, 0); g.closePath();
+      g.fillStyle = '#E8E2D0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
+      const bob = Math.sin(B.time * 2.2) * s * 0.08;
+      if (f > 0.05) { g.save(); g.globalAlpha = f * 0.8; g.beginPath(); g.arc(0, -s * 1.15 + bob, s * (0.5 + (1 - f) * 1.3), 0, 6.28); g.lineWidth = lw; g.strokeStyle = '#45D95E'; g.stroke(); g.restore(); }
+      g.beginPath(); g.arc(0, -s * 1.15 + bob, s * (0.34 + f * 0.1), 0, 6.28);
+      g.fillStyle = '#45D95E'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
+      g.beginPath(); g.arc(-s * 0.12, -s * 1.28 + bob, s * 0.1, 0, 6.28); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
+    } else {
+      // Baliste : tour trapue, bras qui recule puis claque vers l'avant, eclat a la bouche.
+      g.beginPath(); g.moveTo(-s * 0.62, 0); g.lineTo(-s * 0.45, -s * 1.0); g.lineTo(s * 0.45, -s * 1.0); g.lineTo(s * 0.62, 0); g.closePath();
+      g.fillStyle = '#A6B0C0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
+      g.beginPath(); g.moveTo(-s * 0.52, -s * 1.0); g.lineTo(s * 0.52, -s * 1.0); g.lineTo(s * 0.4, -s * 1.2); g.lineTo(-s * 0.4, -s * 1.2); g.closePath();
+      g.fillStyle = '#CBD4E0'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
+      const dir = t.aim || 1;
+      g.save(); g.translate(0, -s * 1.3); g.rotate(dir * (0.2 - f * 0.75));
+      g.beginPath(); g.moveTo(-s * 0.1, -s * 0.1); g.lineTo(s * 0.95 * dir, -s * 0.14); g.lineTo(s * 0.95 * dir, s * 0.1); g.lineTo(-s * 0.1, s * 0.1); g.closePath();
+      g.fillStyle = '#C99464'; g.fill(); g.lineWidth = lw * 0.9; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
+      g.restore();
+      if (f > 0.4) { g.save(); g.globalAlpha = (f - 0.4) / 0.6; g.beginPath(); g.arc(dir * s * 0.9, -s * 1.35, s * 0.3 * f, 0, 6.28); g.fillStyle = '#FFC24B'; g.fill(); g.restore(); }
+    }
+    if (t.level > 1) {
+      g.beginPath(); g.arc(s * 0.75, -s * 0.15, s * 0.3, 0, 6.28);
+      g.fillStyle = '#FFC24B'; g.fill(); g.lineWidth = lw * 0.6; g.strokeStyle = INK; g.stroke();
+      g.font = `${Math.round(s * 0.42)}px 'Lilita One', sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#3A2600'; g.fillText(String(t.level), s * 0.75, -s * 0.13);
+    }
+    g.restore();
   }
 }
 
@@ -1407,7 +1454,9 @@ function drawUnit(g, u, p) {
     drawCreature(g, visual, {
       x: p.px, y: p.py, size, t: B.time + u.x * 0.01, tint,
       pose: dying ? 'idle' : u.pose, archetype: u.arch, role: u.role,
-      facing: u.side === 'p' ? 1 : -1, flash: u.flash
+      facing: u.side === 'p' ? 1 : -1, flash: u.flash,
+      atk: u.interval > 0 ? Math.max(0, Math.min(1, 1 - u.cd / u.interval)) : null,
+      dying: dying ? Math.min(1, u.deadT / CB().combat.death_fade_sec) : 0
     });
   } catch (e) { /* le rendu ne doit jamais casser la boucle */ }
   g.restore();
