@@ -23,11 +23,32 @@ const LIVREES = [
   ['marbrures', 12], ['moucheture', 10], ['dorsale', 12]
 ];
 
+// ---------------------------------------------------------------------------
+// LES CINQ LIGNÉES RIVALES — bible de Wallachie, §7.
+// Une faction ne doit pas être « le même moteur avec une autre teinte ». Chacune porte une
+// RÈGLE DE FORME qui la rend reconnaissable en silhouette, avant même la couleur.
+// ---------------------------------------------------------------------------
+export const FACTIONS = {
+  // « Ils ne construisent rien. Ils mangent. » Aucune fabrication : tout est corps.
+  les_voraces: { asym: 2.2, sat: 1.15, lum: -0.02, pattern: 'marbrures', sansArme: true, gueule: true, tete: 'aucune' },
+  // « Patients, nombreux, sans visage. » Seule lignée à qui la symétrie parfaite est autorisée —
+  // l'interdit général devient ici leur caractère, et c'est ce qui les rend inquiétants.
+  les_gris: { asym: 0, sat: 0.42, lum: 0.02, pattern: 'uni', sansYeux: true, clone: true, tete: 'aucune' },
+  // « Ils arrivent avant qu'on les voie. » Ils empruntent au stade 9 ce qu'ils ne devraient pas avoir.
+  les_luisants: { asym: 1.1, sat: 1.25, lum: 0.06, pattern: 'moucheture', translucide: 0.72, traine: true, trait: 0.62 },
+  // « Chaque coup y laisse une trace, jamais une blessure. » La surface accumule les impacts.
+  les_pierres: { asym: 0.8, sat: 0.62, lum: -0.05, pattern: 'impacts', epais: 1.22 },
+  // « Ils répètent tes propres cris contre toi. » Leur livrée copie celle du joueur, avec un âge
+  // de retard : battle.js leur passe littéralement la graine du joueur.
+  les_echos: { asym: 1, sat: 0.88, lum: 0, pattern: null, echo: true }
+};
+
 const CACHE = new Map();
 
 // Palette, livrée et irrégularités d'un individu. Mémoïsé : appelé à chaque frame par unité.
 export function genesFor(visual = {}, archetype = 'eclaireur') {
-  const key = `${visual.seed || 0}|${visual.stage || 1}|${archetype}|${visual.tint_shift || 0}`;
+  const ombre = Math.max(0, Math.min(1, (visual.axes?.ombre || 0) / 40));   // 40 points = nuit pleine
+  const key = `${visual.seed || 0}|${visual.stage || 1}|${archetype}|${visual.tint_shift || 0}|${visual.faction || ''}|${ombre.toFixed(2)}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
   const r = makeRng('genes:' + key);
@@ -76,6 +97,31 @@ export function genesFor(visual = {}, archetype = 'eclaireur') {
     // décalage temporel : deux créatures identiques ne doivent pas respirer en cadence
     phase: r.range(0, 6.28)
   };
+  // — La règle de forme de la lignée, par-dessus le tirage individuel (bible §7).
+  const F = FACTIONS[visual.faction];
+  if (F) {
+    g.sat *= F.sat; g.lum += F.lum;
+    if (F.pattern) { g.pattern = F.pattern; g.patTone = F.pattern === 'impacts' ? 'sombre' : g.patTone; }
+    // L'asymétrie est le curseur qui distingue le plus vite deux lignées : 0 chez les Gris,
+    // poussé au double chez les Voraces.
+    const k = F.asym;
+    g.eyeR = 1 + (g.eyeR - 1) * k; g.eyeDy *= k; g.limb = 1 + (g.limb - 1) * k;
+    g.tilt *= k; g.jitter *= k; if (k === 0) { g.marque = false; g.side = 1; }
+    g.sansYeux = !!F.sansYeux; g.sansArme = !!F.sansArme; g.gueule = !!F.gueule;
+    g.translucide = F.translucide || 0; g.traine = !!F.traine;
+    g.trait = F.trait || 1; g.epais = F.epais || 1;
+  }
+
+  // — L'OMBRE (bible, loi VI). Elle ne rend pas une créature mauvaise, elle la rend NOCTURNE :
+  //   la peau s'assombrit et se désature, les yeux grandissent pour capter la lumière, la livrée
+  //   se ferme. Jamais de rouge, jamais de corruption.
+  if (ombre > 0.02) {
+    g.lum -= 0.16 * ombre;
+    g.sat *= 1 - 0.42 * ombre;
+    g.nuit = ombre;                       // creature.js agrandit l'œil et ferme la paupière
+    g.patAlpha *= 1 - 0.35 * ombre;
+  }
+
   if (CACHE.size > 500) CACHE.clear();
   CACHE.set(key, g);
   return g;
@@ -156,6 +202,20 @@ export function livree(ctx, G, T, box) {
       const p = golden(i, n, rx * 0.90, ry * 0.86, 0.86);
       ctx.beginPath(); ctx.arc(cx + p.x, cy + p.y, size * 0.016 * G.patScale * (1 + wob(G, i) * 0.4), 0, 6.28); ctx.fill();
     }
+  } else if (G.pattern === 'impacts') {
+    // Livrée d'ARCHIVE (bible §6) : la surface enregistre ce que la créature a encaissé.
+    // Un impact = un éclat clair bordé d'une ombre — jamais une blessure, jamais du rouge.
+    const n = G.patN + 4;
+    for (let i = 0; i < n; i++) {
+      const p = golden(i, n, rx * 0.88, ry * 0.82);
+      const rr = size * 0.040 * G.patScale * (1 + wob(G, i) * 0.55);
+      ctx.save(); ctx.globalAlpha = 1;
+      ctx.fillStyle = shade(T.base, -0.34);
+      ctx.beginPath(); ctx.ellipse(cx + p.x, cy + p.y, rr, rr * 0.8, wob(G, i + 4), 0, 6.28); ctx.fill();
+      ctx.fillStyle = shade(T.base, 0.30);
+      ctx.beginPath(); ctx.ellipse(cx + p.x - rr * 0.22, cy + p.y - rr * 0.22, rr * 0.55, rr * 0.44, wob(G, i + 4), 0, 6.28); ctx.fill();
+      ctx.restore();
+    }
   } else if (G.pattern === 'dorsale') {
     // Une selle sombre sur le dos : le motif le plus répandu du vivant, et le plus lisible en petit.
     ctx.beginPath();
@@ -194,10 +254,12 @@ const BACKS = [null, null, 'spikes', 'shell', 'crystals', 'wings'];
 const TAILS = [null, null, 'club'];
 const MOUTHS = ['fangs', 'fangs', 'smile'];
 
-export function wildVisual(base, seed) {
+export function wildVisual(base, seed, faction) {
   const r = makeRng('wild:' + seed);
-  return {
-    ...base, seed,
+  const F = FACTIONS[faction] || {};
+  if (F.clone) seed = 0;                       // Les Gris : une seule silhouette, répétée
+  const out = {
+    ...base, seed, faction,
     eyes: r.weighted([1, 2, 3], (n) => (n === 2 ? 5 : n === 1 ? 3 : 2)),
     eye_size: r.range(0.82, 1.22),
     mouth: r.pick(MOUTHS),
@@ -210,4 +272,9 @@ export function wildVisual(base, seed) {
     spots: r.range(0, 1) < 0.25 ? 'dark' : null,
     spot_count: r.int(3, 5)
   };
+  if (F.clone) { out.back = null; out.tail = null; out.horns = 0; out.eyes = 2; out.eye_size = 1; out.limb_len = 1; out.skin = 'plain'; out.spots = null; out.mouth = 'smile'; }
+  if (F.gueule) { out.mouth = 'gueule'; out.horns = 0; out.back = out.back === 'wings' ? null : out.back; }
+  if (F.epais) out.outline = (out.outline || 1) * 1.08;
+  if (F.trait) out.outline = (out.outline || 1) * F.trait;
+  return out;
 }

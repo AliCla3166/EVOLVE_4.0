@@ -7,7 +7,7 @@ import { state, save } from '../core/state.js';
 import { h, btn, panel, bar, chip, toast, modal } from '../core/ui.js';
 import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { drawCreature, renderToCanvas } from '../render/creature.js';
-import { wildVisual } from '../render/genes.js';
+import { wildVisual, FACTIONS } from '../render/genes.js';
 import { makeRng } from '../core/rng.js';
 import { dayKey } from '../core/clock.js';
 import {
@@ -59,13 +59,26 @@ function currentFaction() {
   return F.list[idx];
 }
 function factionVisual(fac) {
-  return { seed: fac.seed, stage: stageNum(), bodyplan: stageDef().bodyplan, eyes: 2, eye_size: 1, mouth: 'fangs', skin: 'plain', outline: 1 };
+  return { seed: fac.seed, stage: stageNum(), bodyplan: stageDef().bodyplan, faction: fac.id, eyes: 2, eye_size: 1, mouth: 'fangs', skin: 'plain', outline: 1 };
 }
 // Une vague, c'etait six fois la meme silhouette repeinte : toutes les unites ennemies
 // partageaient UN visuel. Chaque bete tire maintenant sa propre morphologie et sa propre
 // palette de sa graine — la faction reste lisible (meme teinte de base), les individus non.
 function foeVisual(u) {
-  if (!u.vis) u.vis = wildVisual(B.enemyVisual, ((B.fac.seed | 0) * 7919 + (u.foeN | 0) * 104729) >>> 0);
+  if (u.vis) return u.vis;
+  const F = FACTIONS[B.fac.id] || {};
+  if (F.echo) {
+    // « Ils repetent tes propres cris contre toi. » Les Echos portent LA LIVREE DU JOUEUR, avec un
+    // age de retard : meme graine, meme genome, stade precedent. C'est la faction la moins chere
+    // du jeu et la plus troublante.
+    u.vis = { ...B.visual, faction: B.fac.id, stage: Math.max(1, stageNum() - 1) };
+  } else if (F.clone) {
+    // Les Gris : une seule silhouette, repetee a l'identique sur toute la vague.
+    B.grisVis = B.grisVis || wildVisual(B.enemyVisual, 0, B.fac.id);
+    u.vis = B.grisVis;
+  } else {
+    u.vis = wildVisual(B.enemyVisual, ((B.fac.seed | 0) * 7919 + (u.foeN | 0) * 104729) >>> 0, B.fac.id);
+  }
   return u.vis;
 }
 function turretDefs() { return CB().turrets.types; }

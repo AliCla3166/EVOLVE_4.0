@@ -34,6 +34,13 @@ header.top .title { font-family: var(--display); font-size: 20px; letter-spacing
 .pill.elan { border-color: var(--green-d); color: var(--green); }
 .pill.gold { border-color: var(--gold-d); color: var(--gold); }
 .pill .ico-e { font-size: 13px; }
+/* Icônes SVG : elles remplacent les emoji, donc elles doivent se comporter comme un glyphe —
+   alignées sur la ligne de base du texte, jamais plus hautes que la ligne. */
+svg.ico { display: inline-block; vertical-align: -0.22em; flex: none; }
+.pill svg.ico { width: 16px; height: 16px; vertical-align: -0.24em; }
+.tab-ico svg.ico { width: 22px; height: 22px; vertical-align: 0; }
+.btn svg.ico { width: 20px; height: 20px; }
+.panel-title svg.ico { width: 22px; height: 22px; }
 .bump { animation: bump .45s cubic-bezier(.2,1.8,.4,1); }
 @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
 

@@ -10,6 +10,7 @@ import { checkCodex } from './modes/codex.js';
 import { showComeback } from './modes/comeback.js';
 import { flushSync } from './core/sync.js';
 import * as notify from './core/notify.js';
+import { watch as watchIcons, iconify } from './core/icons.js';
 
 const MODES = {};
 let current = null; let currentMod = null;
@@ -43,6 +44,9 @@ async function main() {
   refreshWallet();
   document.getElementById('btn-settings').addEventListener('click', () => navigate('settings'));
   const start = state.settings.onboarded ? (location.hash.slice(1) || 'ritual') : 'settings';
+  // Bible de Wallachie, §9 : « on ne dessine jamais un emoji ». Un seul observateur remplace
+  // chaque glyphe par son icône, partout, sans qu'aucun mode ait à le savoir.
+  watchIcons(document.body);
   navigate(start, { onboarding: !state.settings.onboarded });
   // Retour apres absence : un accueil qui raconte ce qui s'est passe, pas un toast rouge.
   // On ne fait pas remonter le Codex par-dessus : il attendra la prochaine recolte.

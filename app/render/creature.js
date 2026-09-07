@@ -67,6 +67,8 @@ export function drawCreature(ctx, visual, opts = {}) {
   ctx.transform(1, 0, -lean, 1, 0, 0);
   ctx.scale((1 / squash) * (1 + dying * .35), squash);
   if (flash) ctx.filter = `brightness(${1 + flash * 1.7}) saturate(${1 - flash * .5})`;
+  // Les Luisants sont partiellement translucides (bible §7) — l'ombre au sol, elle, reste pleine.
+  if (G.translucide) ctx.globalAlpha *= G.translucide;
 
   const A = { ctx, T, W, size, t, visual, arch, pose, role, atk, tier, ph, walk, archetype, G, lw: W.hero };
   if (visual.aura) drawAura(A, -size * .45);
@@ -125,13 +127,23 @@ function drawLumen(A, cx, cy, r) {
 function drawEyes(A, cx, cy, r) {
   const { ctx, visual, t, ph, W, T, G, arch, size } = A;
   const n = visual.eyes || 1;
-  const es = r * (visual.eye_size || 1) * (1 + ph.strike * .08);
+  const nuit = G ? (G.nuit || 0) : 0;
+  // L'Ombre rend nocturne : l'œil grandit pour capter la lumière (bible, loi VI).
+  const es = r * (visual.eye_size || 1) * (1 + ph.strike * .08) * (1 + nuit * .34);
+  // Les Gris n'ont pas de visage : deux fentes sombres, pas de blanc, pas d'iris.
+  if (G && G.sansYeux) {
+    const sp0 = es * .80;
+    for (const sg of [-1, 1]) {
+      inner(ctx, (c) => { c.beginPath(); c.ellipse(cx + sg * sp0, cy, es * .56, es * .17, sg * .12, 0, 6.28); }, shade(T.base, -.62));
+    }
+    return;
+  }
   const blink = (((t * .9 + (visual.seed || 0) % 3) % 4.6) > 4.46) ? .10 : 1;
   const look = ph.wind ? -.5 : ph.strike ? .9 : Math.sin(t * .7) * .5;
   const [tilt, lourd] = arch.regard || [0, .7];
   const iris = G ? G.iris : shade(T.base, -.5);
   const SCLERA = '#F6F2E6';                      // ivoire, pas blanc pur
-  const lid = T.lod ? .17 * lourd + ph.wind * .12 : 0;
+  const lid = T.lod ? (.17 * lourd + ph.wind * .12) * (1 - nuit * .55) : 0;
 
   const eye = (ex, ey, er, dir) => {
     const globe = orb(ex, ey, er, er * .94 * blink);
@@ -141,7 +153,8 @@ function drawEyes(A, cx, cy, r) {
       ctx.save(); globe(ctx); ctx.clip();
       inner(ctx, orb(ex + look * er * .34, ey + er * .06, er * .60), iris);
       inner(ctx, orb(ex + look * er * .34, ey + er * .06, er * .30), INK);
-      inner(ctx, orb(ex + look * er * .34 - er * .22, ey - er * .20, er * .15), '#FFFFFF');
+      // Le reflet non plus n'est pas blanc pur (bible §9) : un blanc chaud, jamais clinique.
+      inner(ctx, orb(ex + look * er * .34 - er * .22, ey - er * .20, er * .15), '#FFFDF2');
       // paupière : un aplat de peau qui mange le haut du globe
       if (lid > 0) inner(ctx, orb(ex, ey - er * (2.05 - lid * 2), er * 1.15, er * 1.05), T.base);
       ctx.restore();
@@ -172,6 +185,17 @@ function drawMouth(A, cx, cy, w) {
   const { ctx, visual, W, T, ph } = A;
   const open = ph.strike * .8;
   if (T.lod) { ctx.save(); ctx.globalAlpha = .34; inner(ctx, orb(cx, cy - w * .12, w * 1.15, w * .85), shade(T.base, .24)); ctx.restore(); }
+  if (visual.mouth === 'gueule') {
+    // « Ils ne construisent rien. Ils mangent. » La bouche est plus large que le crâne.
+    const mw = w * 1.72, op = .5 + open * .7;
+    form(ctx, (c) => { c.beginPath(); c.moveTo(cx - mw, cy - w * .18); c.quadraticCurveTo(cx, cy + mw * op, cx + mw, cy - w * .18); c.quadraticCurveTo(cx, cy + w * .12, cx - mw, cy - w * .18); c.closePath(); },
+      { ...T, base: '#3A1A22', mid: '#241016', hi: '#4A222C', band: T.band * .5 }, W.struct);
+    for (let i = -3; i <= 3; i++) {
+      const u = i / 3.4, tx = cx + u * mw * .88, ty = cy - w * .18 + Math.cos(u * 1.4) * mw * op * .30;
+      inner(ctx, (c) => { c.beginPath(); c.moveTo(tx - mw * .09, ty - mw * .04); c.lineTo(tx, ty + mw * .30); c.lineTo(tx + mw * .09, ty - mw * .04); c.closePath(); }, '#F6F2E6');
+    }
+    return;
+  }
   if (visual.mouth === 'fangs') {
     const mw = w * .84;
     form(ctx, (c) => { c.beginPath(); c.moveTo(cx - mw, cy); c.quadraticCurveTo(cx, cy + mw * (.85 + open), cx + mw, cy); c.closePath(); },
@@ -384,7 +408,8 @@ function drawBeast(A) {
 function drawBiped(A, kind) {
   const { ctx, T, W, size, t, visual, arch, pose, role, atk, tier, ph, walk, G } = A;
   const S = size;
-  const spirit = kind === 'spirit' || kind === 'god';
+  // Les Luisants empruntent au stade 9 une traîne qu'ils ne devraient pas encore avoir.
+  const spirit = kind === 'spirit' || kind === 'god' || !!G.traine;
   const skin = kind === 'god' ? { ...T, base: '#F0E4B8', hi: '#FFF8DC', mid: '#D6C48C', dark: '#B39C5E' } : T;
   const dark = { ...skin, base: skin.dark, hi: skin.mid, mid: shade(skin.dark, -.2) };
   const front = { ...skin, base: shade(skin.base, .09), hi: shade(skin.hi, .09) };
@@ -418,7 +443,7 @@ function drawBiped(A, kind) {
     form(ctx, capsule(0, 0, L, 0, S * .062, S * .046), TT, W.limb, { hi: !back });
     form(ctx, orb(L, 0, S * .060), visual.hands ? { ...TT, base: shade(TT.base, .18) } : TT, W.limb, { hi: !back });
     form(ctx, orb(0, 0, S * .076, S * .072), TT, W.limb, { stroke: false });   // deltoïde, sans encre
-    if (gear) { ctx.translate(L, 0); drawGear({ ...A, lw: W.hero }, { role, tier, atk: pose === 'attack' ? atk : null, t }); }
+    if (gear && !G.sansArme) { ctx.translate(L, 0); drawGear({ ...A, lw: W.hero }, { role, tier, atk: pose === 'attack' ? atk : null, t }); }
     ctx.restore();
   };
   const swing = pose === 'attack' ? armSwing(atk, t, role) : pose === 'walk' ? step * .40 : Math.sin(t * 2) * .08;
@@ -510,7 +535,8 @@ function spikes(A, cx, cy, rx, ry, count, fromA, toA, len0, col) {
 
 // Ancrage de l'arme pour les morphologies sans bras.
 function gearAt(A, x, y, scale, base = 0) {
-  const { ctx, size, role, atk, tier, pose, t, W } = A;
+  const { ctx, size, role, atk, tier, pose, t, W, G } = A;
+  if (G && G.sansArme) return;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(base + armSwing(pose === 'attack' ? atk : null, t, role) * .8);

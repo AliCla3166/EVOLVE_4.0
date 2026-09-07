@@ -204,11 +204,17 @@ export function drawBuilding(ctx, opts) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3A2600';
     ctx.fillText(String(level), s * .92, -s * .06);
   }
-  // marteau du chantier (amelioration d'un batiment deja construit)
+  // Marteau du chantier (amelioration d'un batiment deja construit). Dessine, pas ecrit :
+  // c'etait le dernier emoji du jeu rendu au canvas (bible §9).
   if (busy && level) {
-    const bob = Math.sin(t * 4) * s * .12;
-    ctx.font = `${Math.round(s * .7)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('⚒️', 0, -s * 2.1 + bob);
+    const bob = Math.sin(t * 4) * s * .12, y0 = -s * 2.1 + bob, k = s * .34;
+    ctx.save(); ctx.translate(0, y0); ctx.rotate(-.5 + Math.sin(t * 4) * .35);
+    ctx.lineJoin = 'round'; ctx.lineWidth = lw * .7; ctx.strokeStyle = INK;
+    ctx.beginPath(); ctx.roundRect(-k * .30, -k * .1, k * .6, k * 2.0, k * .16);
+    ctx.fillStyle = '#C97A3E'; ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(-k * 1.05, -k * .85, k * 2.1, k * .8, k * .2);
+    ctx.fillStyle = '#8B8C86'; ctx.fill(); ctx.stroke();
+    ctx.restore();
   }
   ctx.restore();
 }
