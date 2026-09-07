@@ -1,19 +1,30 @@
 // Le Rituel — le brief journalier. Entierement pilote par data/habits.json : chaque champ y est defini (type, bareme, pilier, axe).
+//
+// Trois regles d'ergonomie, issues du diagnostic du 07/09 :
+//  1. Un noyau de champs visibles (habits.json > "core": true), le reste replie derriere "Détails".
+//     Le brief complet reste accessible, il n'est simplement plus la premiere chose qu'on voit.
+//  2. Les points par champ sont masques pendant la saisie (Reglages pour les reafficher) : on
+//     raconte sa journee, on n'optimise pas un bareme. Le detail arrive a la recolte.
+//  3. Un parcours de 30 secondes : "Journée comme d'habitude" pre-remplit la mediane des 14 derniers
+//     jours. Une saisie ordinaire faite vite bat une saisie parfaite jamais faite.
 import { config, allFields } from '../core/config.js';
 import { state, save } from '../core/state.js';
-import { dayKey, addDays, daysBetween, fmtDay } from '../core/clock.js';
-import { scoreField, scoreDay, submitDay, streakBonusPct, streakTier } from '../core/economy.js';
-import { h, btn, panel, bar, chip, toast, modal, floatBubble, fmt } from '../core/ui.js';
+import { dayKey, addDays, fmtDay } from '../core/clock.js';
+import { scoreDay, submitDay, streakBonusPct, streakTier, typicalDay } from '../core/economy.js';
+import { h, btn, panel, bar, chip, toast, modal, floatBubble, fmt, confirmModal } from '../core/ui.js';
 import { progressContract } from '../core/progress.js';
 import { checkDrafts } from './species.js';
 import { checkCodex } from './codex.js';
+import { colonyRates } from './colony.js';
 
 let ctx, root, selectedKey, entries, scoreEl, pillarsEl, fieldPts = {};
+let expanded = {};   // sectionId -> bool, remis a zero a chaque montage
 
 export function mount(el, c) {
   ctx = c; root = el;
   const today = dayKey();
   selectedKey = c.opts?.day || today;
+  expanded = {};
   render();
 }
 export function unmount() { persistDraft(); }
@@ -25,9 +36,42 @@ function loadEntries(key) {
   return {};
 }
 function persistDraft() { if (!selectedKey || !entries) return; const d = state.days[selectedKey]; if (!d?.submittedAt) { state.ritualDrafts[selectedKey] = entries; save(); } }
+function showPoints() { return !!state.settings.showPoints; }
+
+// ---------------------------------------------------------------- parcours de 30 secondes
+// Ce qui a change depuis hier, puis un seul geste pour valider une journee ordinaire.
+function sinceYesterday() {
+  const bits = [];
+  const rates = colonyRates();
+  const ico = { biomasse: '🍖', materiaux: '🧱', genes: '🧬' };
+  const prod = Object.entries(rates).filter(([, v]) => v > 0).map(([k, v]) => `${ico[k]}${fmt(Math.round(v))}/h`);
+  if (prod.length) bits.push('🏕️ la Colonie produit ' + prod.join('  '));
+  const q = state.colony.queue.length;
+  if (q) bits.push(`⚒️ ${q} chantier${q > 1 ? 's' : ''} en cours`);
+  const d = state.species.pendingDrafts.length;
+  if (d) bits.push(`🧬 ${d} mutation${d > 1 ? 's' : ''} à choisir`);
+  const open = state.colony.contracts.filter(c => !c.done).length;
+  if (open) bits.push(`📜 ${open} contrat${open > 1 ? 's' : ''} ouvert${open > 1 ? 's' : ''}`);
+  return bits;
+}
+
+async function fillTypical() {
+  const t = typicalDay();
+  if (!t) { toast('Pas encore assez de jours saisis pour deviner une journée type', ''); return; }
+  const fields = allFields();
+  const names = fields.filter(f => t[f.id] !== undefined).map(f => f.label).slice(0, 4).join(', ');
+  const ok = await confirmModal('Journée comme d\'habitude ?',
+    `Je remplis ${Object.keys(t).length} champs avec la médiane de tes 14 derniers jours (${names}…). Tu corriges avant de récolter — le commentaire et le moment fort restent vides, on n'invente pas de souvenir.`,
+    'Remplir', 'green');
+  if (!ok) return;
+  entries = { ...t, ...entries };   // ce que tu as deja saisi gagne toujours
+  state.ritualDrafts[selectedKey] = entries; save();
+  render();
+  toast('Journée type remplie — vérifie et récolte', 'green');
+}
 
 function render() {
-  root.innerHTML = '';
+  root.innerHTML = ''; fieldPts = {};
   entries = loadEntries(selectedKey);
   const H = config.habits; const today = dayKey();
   const rec = state.days[selectedKey];
@@ -45,17 +89,33 @@ function render() {
   const tier = streakTier(streak); const next = H.streak.tiers.find(t => t > streak) || H.streak.tiers[H.streak.tiers.length - 1];
   const hero = panel(null,
     h('div', { class: 'row between' },
-      h('div', {}, h('h1', {}, isToday ? 'Aujourd\'hui' : fmtDay(selectedKey, { weekday: 'long', day: 'numeric', month: 'long' })), h('div', { class: 'muted' }, rec?.submittedAt ? (rec.late ? 'Saisi en retard — payé, série non tenue' : `Récolté · ${rec.elan} ⚡`) : isToday ? 'Le brief du jour — 2 minutes' : 'Saisie rétroactive (7 jours) — sans série')),
+      h('div', {}, h('h1', {}, isToday ? 'Aujourd\'hui' : fmtDay(selectedKey, { weekday: 'long', day: 'numeric', month: 'long' })), h('div', { class: 'muted' }, rec?.submittedAt ? (rec.late ? 'Saisi en retard — payé, série non tenue' : `Récolté · ${rec.elan} ⚡`) : isToday ? 'Le brief du jour' : 'Saisie rétroactive — sans série')),
       h('div', { class: 'center-text' }, h('div', { class: 'display', style: { fontSize: '30px', color: 'var(--gold)' } }, `🔥 ${streak}`), h('div', { class: 'small muted' }, bonus ? `+${bonus} % · palier ${tier + 1}` : `palier à ${next} j`))),
     h('div', { style: { marginTop: '8px' } }, bar(Math.min(100, (streak / next) * 100), { color: 'var(--gold)', label: `${streak} / ${next} jours`, height: 16 })),
     h('div', { class: 'row between', style: { marginTop: '10px' } }, h('span', { class: 'muted' }, 'Élan du jour'), scoreEl = h('span', { class: 'display', style: { fontSize: '24px', color: 'var(--green)' } }, '0 ⚡')),
     pillarsEl = h('div', { class: 'pillars', style: { marginTop: '8px' } })
   );
   root.append(hero);
-  // --- sections ---
+  // --- depuis hier + journee type ---
+  if (isToday && !rec?.submittedAt) {
+    const bits = sinceYesterday();
+    root.append(panel(null,
+      bits.length ? h('div', { class: 'col gap', style: { marginBottom: '10px' } }, ...bits.map(b => h('div', { class: 'small muted' }, b))) : null,
+      btn('⏱️ Journée comme d\'habitude', { kind: 'blue', size: 'block', onClick: () => fillTypical() }),
+      h('p', { class: 'small muted center-text', style: { margin: '6px 0 0' } }, 'Remplit la médiane de tes 14 derniers jours. Tu corriges, tu récoltes.')));
+  }
+  // --- sections : noyau visible, reste replie ---
   for (const sec of H.sections) {
+    const core = sec.fields.filter(f => f.core);
+    const rest = sec.fields.filter(f => !f.core);
+    const shown = (expanded[sec.id] || !core.length) ? sec.fields : core;
     const p = h('section', { class: 'panel' }, h('div', { class: 'section-head' }, h('span', {}, sec.icon), sec.title));
-    for (const f of sec.fields) p.append(renderField(f));
+    for (const f of shown) p.append(renderField(f));
+    if (rest.length && core.length) {
+      const filled = rest.filter(f => { const v = entries[f.id]; return v !== undefined && v !== '' && !(Array.isArray(v) && !v.length); }).length;
+      p.append(h('button', { class: 'chip', style: { marginTop: '6px' }, onClick: () => { expanded[sec.id] = !expanded[sec.id]; render(); } },
+        expanded[sec.id] ? '− Replier' : `+ Détails (${rest.length}${filled ? ` · ${filled} rempli${filled > 1 ? 's' : ''}` : ''})`));
+    }
     root.append(p);
   }
   // --- action ---
@@ -80,8 +140,9 @@ function updateScore() {
 
 function renderField(f) {
   const wrap = h('div', { class: 'field' });
-  const pts = h('span', { class: 'f-pts zero' }, '—'); fieldPts[f.id] = pts;
-  wrap.append(h('div', { class: 'field-head' }, h('span', { class: 'f-ico' }, f.icon || '•'), h('span', { class: 'f-label' }, f.label), pts));
+  const head = [h('span', { class: 'f-ico' }, f.icon || '•'), h('span', { class: 'f-label' }, f.label)];
+  if (showPoints()) { const pts = h('span', { class: 'f-pts zero' }, '—'); fieldPts[f.id] = pts; head.push(pts); }
+  wrap.append(h('div', { class: 'field-head' }, ...head));
   const v = entries[f.id];
   switch (f.type) {
     case 'toggle': { const c = chip(v ? '✓ Fait' : 'À faire', !!v, () => { setEntry(f.id, !entries[f.id]); c.textContent = entries[f.id] ? '✓ Fait' : 'À faire'; c.classList.toggle('active', !!entries[f.id]); }); wrap.append(c); break; }
@@ -112,7 +173,7 @@ function renderField(f) {
       const cur = v || {};
       const mk = (k, ph) => { const i = h('input', { type: 'number', inputmode: 'numeric', placeholder: ph, value: cur[k] ?? '' }); i.addEventListener('input', () => { const o = { ...(entries[f.id] || {}) }; o[k] = i.value === '' ? undefined : Number(i.value); setEntry(f.id, o); }); return i; };
       wrap.append(h('div', { class: 'row gap' }, h('div', { class: 'numfield grow' }, mk('depense', 'dépensées')), h('span', { class: 'display' }, '/'), h('div', { class: 'numfield grow' }, mk('mange', 'mangées'))));
-      wrap.append(h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Déficit ou égalité +${f.deficit_points} · surplus ≤ ${f.small_surplus_max} +${f.small_surplus_points} · au-delà ${f.big_surplus_points}`));
+      if (showPoints()) wrap.append(h('div', { class: 'small muted', style: { marginTop: '4px' } }, `Déficit ou égalité +${f.deficit_points} · surplus ≤ ${f.small_surplus_max} +${f.small_surplus_points} · au-delà ${f.big_surplus_points}`));
       break;
     }
     case 'text': {
@@ -132,7 +193,6 @@ async function harvest(button) {
   if (!wasDone && key === dayKey()) progressContract('ritual', 1);
   save();
   ctx.refreshWallet();
-  // Animation de recolte : bulles vers le compteur d'Elan
   const n = Math.min(8, Math.max(1, Math.round(Math.abs(diff) / 20)));
   for (let i = 0; i < n; i++) setTimeout(() => floatBubble(`+${Math.round(diff / n)}`, button, '#w-elan'), i * 90);
   const drafts = checkDrafts();
@@ -140,16 +200,22 @@ async function harvest(button) {
   render();
 }
 function showSummary(rec, diff, sc, drafts, wasDone, spGranted = 0) {
-  const H = config.habits; const A = config.stages.axes;
+  const A = config.stages.axes;
   const axes = h('div', { class: 'row wrap gap', style: { justifyContent: 'center' } });
   for (const ax of A.order) { const v = sc.axisPoints[ax] || 0; if (v > 0) axes.append(h('span', { class: 'mut-tag', style: { borderColor: A[ax].color } }, `${A[ax].icon} +${fmt(v)}`)); }
+  // Le detail du bareme arrive ICI, une fois la journee racontee — plus pendant la saisie.
+  const fields = allFields();
+  const top = Object.entries(sc.breakdown).filter(([, v]) => v).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 5);
+  const detail = top.length ? h('div', { class: 'card-soft col', style: { textAlign: 'left', marginTop: '10px' } },
+    ...top.map(([id, v]) => { const f = fields.find(x => x.id === id); return h('div', { class: 'row between small' }, h('span', {}, `${f?.icon || ''} ${f?.label || id}`), h('b', { style: { color: v < 0 ? 'var(--red)' : 'var(--green)' } }, `${v > 0 ? '+' : ''}${fmt(v)}`)); })) : null;
   const m = modal(h('div', { class: 'harvest-hero' },
     h('div', { class: 'muted', style: { letterSpacing: '2px', textTransform: 'uppercase', fontSize: '11px' } }, wasDone ? 'Journée mise à jour' : 'Récolte'),
     h('div', { class: 'big' }, `${diff >= 0 ? '+' : ''}${diff} ⚡`),
     h('p', { class: 'muted' }, rec.late ? 'Saisie en retard : payée, série non tenue.' : sc.perfect ? '🌟 Journée parfaite — les 4 piliers validés !' : `${sc.pillars.length}/4 piliers validés`),
     rec.streakBonusPct ? h('p', { class: 'small', style: { color: 'var(--gold)' } }, `Bonus de série +${rec.streakBonusPct} %`) : null,
-    spGranted ? h('p', { class: 'small', style: { color: 'var(--purple)' } }, `+${spGranted} Point${spGranted > 1 ? 's' : ''} de Stade — la Métamorphose approche`) : null,
+    spGranted ? h('p', { class: 'small', style: { color: 'var(--purple)' } }, `+${spGranted} Point${spGranted > 1 ? 's' : ''} de Stade`) : null,
     h('p', { class: 'small muted' }, 'Points de génome'), axes,
+    detail,
     drafts.length ? h('p', { style: { color: 'var(--purple)', marginTop: '10px' } }, `🧬 ${drafts.length} mutation${drafts.length > 1 ? 's' : ''} à choisir dans Espèce !`) : null,
     h('div', { class: 'row gap center', style: { marginTop: '12px' } }, btn('Fermer', { onClick: () => m.close() }), drafts.length ? btn('Voir l\'Espèce', { kind: 'purple', onClick: () => { m.close(); ctx.navigate('species'); } }) : null)
   ), { cls: 'glow-green' });

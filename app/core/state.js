@@ -30,9 +30,9 @@ export function defaultState() {
     colony: { buildings: {}, queue: [], lastTick: Date.now(), coreLevel: 1, contracts: [], contractsDay: null, contractProgress: {} },
     battle: { campaignLevel: 1, defenseWave: 1, defenseDay: null, defenseWavesToday: 0, stagePointsDay: null, stagePointsToday: 0, raidsDay: null, raidsToday: 0, turrets: [], records: { defenseWave: 0, raidPeril: 0 }, kills: 0, cardsPlayed: 0 },
     cards: { collection: {}, deck: [], pity: 0, xp: {} },
-    codex: { unlocked: [] },
+    codex: { unlocked: [], quotes: {} },   // quotes : id d'entree -> { date, text } fige au deblocage
     sync: { queue: [], endpoint: '', secret: '', enabled: false, lastSync: null, lastError: null },
-    settings: { habitsOverride: null, sound: true, onboarded: false, dev: false },
+    settings: { habitsOverride: null, sound: true, onboarded: false, dev: false, showPoints: false, notifyEnabled: false, notifyHour: null, notifyMinute: null, notifiedDay: null },
     stats: { perfectDays: 0, totalElan: 0, ritualsDone: 0 }
   };
 }

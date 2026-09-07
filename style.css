@@ -1,3 +1,6 @@
+.codex-quote { margin-top: 10px; padding: 8px 12px; border-left: 3px solid var(--gold); background: rgba(255,194,75,.08); border-radius: 0 10px 10px 0; text-align: left; }
+.codex-quote p { font-style: italic; color: var(--chalk); margin: 0 0 4px; font-size: 14px; }
+
 /* EVOLVE 4.0 — DA "sticker vivant" (ref. We Are Warriors) : contour encre epais, aplats francs, boutons chunky. */
 
 :root {

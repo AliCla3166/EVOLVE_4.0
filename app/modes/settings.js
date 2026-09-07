@@ -3,6 +3,7 @@ import { config } from '../core/config.js';
 import { state, save, exportJSON, importJSON, reset } from '../core/state.js';
 import { h, btn, panel, toast, modal, confirmModal } from '../core/ui.js';
 import { testSync, flushSync, requeueAll } from '../core/sync.js';
+import * as notify from '../core/notify.js';
 import { speciesVisual } from '../core/genome.js';
 import { renderToCanvas } from '../render/creature.js';
 
@@ -45,6 +46,12 @@ function render() {
     h('div', { class: 'settings-row' }, h('span', {}, 'Synchronisation'), tog), ep, sec,
     h('div', { class: 'row gap', style: { marginTop: '8px' } }, btn('Tester', { size: 'sm', kind: 'blue', onClick: async () => { try { const r = await testSync(); toast(`OK · base « ${r.database || r.title || 'Chronique'} »`, 'green'); } catch (e) { toast('Échec : ' + e.message, 'red'); } } }), btn('Pousser maintenant', { size: 'sm', onClick: async () => { await flushSync(true); toast(state.sync.lastError ? state.sync.lastError : 'Poussé', state.sync.lastError ? 'red' : 'green'); } }), btn('Tout renvoyer', { size: 'sm', onClick: async () => { const n = requeueAll(); await flushSync(true); toast(state.sync.lastError ? state.sync.lastError : `${n} jour(s) renvoyé(s)`, state.sync.lastError ? 'red' : 'green'); } })),
     h('p', { class: 'small muted', style: { marginTop: '6px' } }, `${s.queue.length} jour(s) en attente${s.lastError ? ' · dernière erreur : ' + s.lastError : ''}`)));
+  // Le declencheur du soir
+  root.append(renderNotify());
+  // Confort de saisie
+  const pts = h('button', { class: 'chip' + (state.settings.showPoints ? ' active' : ''), onClick: () => { state.settings.showPoints = !state.settings.showPoints; save(true); render(); } }, state.settings.showPoints ? 'Points affichés' : 'Points masqués');
+  root.append(panel('Saisie', h('p', { class: 'muted small' }, 'Par défaut, le Rituel n\'affiche pas le nombre de points de chaque champ pendant la saisie : tu racontes ta journée, tu ne calcules pas. Le détail arrive à la récolte. Tu peux les réafficher.'),
+    h('div', { class: 'settings-row' }, h('span', {}, 'Points par champ'), pts)));
   // Sauvegarde
   root.append(panel('Sauvegarde', h('p', { class: 'muted small' }, `Version de sauvegarde ${state.version} · ${Object.keys(state.days).length} jours · créée le ${new Date(state.createdAt).toLocaleDateString('fr-FR')}`),
     h('div', { class: 'row gap wrap' }, btn('Exporter', { size: 'sm', onClick: () => { const blob = new Blob([exportJSON()], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: `evolve-save-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(a); a.click(); a.remove(); } }),
@@ -64,6 +71,46 @@ function render() {
   });
   root.append(panel('À propos', buildLine, h('p', { class: 'muted small' }, 'Installer : Chrome Android → menu ⋮ → « Ajouter à l\'écran d\'accueil ». Sur iPhone : Partager → « Sur l\'écran d\'accueil ».'), btn('Retour au jeu', { kind: 'green', size: 'block', onClick: () => ctx.navigate('ritual') })));
 }
+// Notifications. Le texte dit franchement ce qu'une PWA sait faire et ce qu'elle ne sait pas :
+// promettre un rappel fiable app fermee serait un mensonge, et un rappel rate est pire que pas de rappel.
+function renderNotify() {
+  const p = permissionLabel();
+  const on = state.settings.notifyEnabled && notify.permission() === 'granted';
+  const tog = h('button', { class: 'chip' + (on ? ' active' : ''), onClick: async () => {
+    if (on) { notify.disable(); toast('Rappel désactivé', ''); render(); return; }
+    const r = await notify.enable();
+    if (r === 'granted') toast('Rappel activé', 'green');
+    else if (r === 'denied') toast('Notifications refusées par le navigateur', 'red');
+    else toast('Notifications indisponibles sur cet appareil', 'red');
+    render();
+  } }, on ? 'Rappel activé' : 'Rappel désactivé');
+
+  const hour = h('input', { class: 'txt', type: 'time', value: String(notify.notifyHour()).padStart(2, '0') + ':' + String(notify.notifyMinute()).padStart(2, '0'), style: { maxWidth: '140px' } });
+  hour.addEventListener('change', () => {
+    const [hh, mm] = hour.value.split(':').map(Number);
+    if (isNaN(hh)) return;
+    state.settings.notifyHour = hh; state.settings.notifyMinute = mm || 0; save(true);
+    notify.schedule(); toast('Rappel réglé sur ' + hour.value, 'green');
+  });
+
+  return panel('Le rappel du soir',
+    h('p', { class: 'muted small' }, 'Une phrase, une fois par soir, dans le registre du Codex — jamais un reproche, jamais un mot sur ta série.'),
+    h('div', { class: 'settings-row' }, h('span', {}, 'Rappel quotidien'), tog),
+    h('div', { class: 'settings-row' }, h('span', {}, 'Heure'), hour),
+    h('p', { class: 'small muted' }, 'Ce soir : « ' + notify.lineFor() + ' »'),
+    h('div', { class: 'row gap wrap', style: { marginTop: '8px' } },
+      btn('Tester maintenant', { size: 'sm', kind: 'blue', onClick: async () => { const r = await notify.preview(); if (r !== 'granted') toast('Autorisation refusée', 'red'); } })),
+    h('p', { class: 'small muted', style: { marginTop: '8px' } }, p),
+    h('p', { class: 'small muted' }, 'À savoir : une app web ne peut pas garantir un rappel quand elle est complètement fermée — c\'est une limite du navigateur, pas un réglage. Concrètement : le rappel part si l\'app est ouverte ou en arrière-plan à l\'heure dite, et sinon tu le retrouves à la réouverture. La version APK, elle, le rendra fiable.'));
+}
+function permissionLabel() {
+  const p = notify.permission();
+  if (p === 'unsupported') return 'Cet appareil ne gère pas les notifications web.';
+  if (p === 'granted') return 'Autorisation accordée.';
+  if (p === 'denied') return 'Autorisation refusée : il faut la rétablir dans les réglages du navigateur pour ce site.';
+  return 'Autorisation pas encore demandée.';
+}
+
 function editHabits() {
   const ta = h('textarea', { class: 'txt mono' }, state.settings.habitsOverride || JSON.stringify(config.habits, null, 2));
   const m = modal(h('div', {}, h('h2', { class: 'modal-title' }, 'habits.json'), h('p', { class: 'muted small' }, 'Types : toggle · counter · number · duration · scale · text · multi · calories. Chaque champ a un id unique (colonne Notion), un barème, un pilier et un axe.'), ta,

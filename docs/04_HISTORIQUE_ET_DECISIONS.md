@@ -61,3 +61,32 @@ Vérifications passées : journée parfaite → +6 Points de Stade affichés dan
 Build passé à `0.2.0` (`index.html`) et cache du service worker à `evolve4-v0.2.0`. Format de sauvegarde inchangé (version 1) : les parties en cours sont conservées, `defenseWave` se re-borne tout seul.
 
 **Non traité dans ce lot** (lot 2 du plan) : notification quotidienne, écran de retour après absence, Ombre rendue lisible, Codex citant le moment fort, Rituel réduit à 6-8 champs, écran « ce qui a changé depuis hier », `tools/simulate.py`.
+
+## 07/09/2026 — Lot 2 : la boucle d'habitude (build 0.3.0)
+
+Suite du diagnostic du 07/09. Le lot 1 avait débloqué le moteur ; le lot 2 s'attaque à ce qui
+faisait qu'on n'ouvrait pas l'app.
+
+- **Le déclencheur.** `app/core/notify.js` + `data/notify.json`. Un rappel du soir, réglable,
+  registre du Codex, jamais un reproche, jamais un mot sur la série. Limite assumée et écrite dans
+  les Réglages : une PWA ne peut pas garantir une notification app fermée (Notification Triggers
+  non livrée, Push API = serveur + VAPID). On fait donc : minuterie tant que l'onglet vit, rappel
+  de rattrapage à la réouverture après l'heure, `periodicSync` quand le navigateur l'accorde. La
+  fiabilité viendra de l'APK.
+- **Le retour après absence.** `app/modes/comeback.js` remplace le toast rouge. Il raconte ce qui
+  s'est passé (production de la Colonie, boucliers, mutations en attente), explique l'Ombre comme
+  un style de jeu et non une punition, et propose la saisie rétroactive. Aucun mot sur la série.
+- **Mémoire → fiction.** Chaque entrée de Codex débloquée fige en exergue le « moment fort » écrit
+  au moment du déblocage (`state.codex.quotes`). C'est le seul endroit où la vie réelle devient la
+  matière du lore, et ça n'utilise que des données déjà collectées.
+- **Rituel allégé.** `"core": true` dans `habits.json` : 8 champs visibles au lieu de 16, le reste
+  replié derrière « Détails » (barème inchangé). Les points par champ sont masqués pendant la
+  saisie — on raconte sa journée, on n'optimise pas un barème — et le détail arrive à la récolte.
+  Réglages → Saisie pour les réafficher.
+- **Parcours de 30 secondes.** « Journée comme d'habitude » remplit la médiane des 14 derniers
+  jours (`typicalDay()` dans `economy.js`). Jamais les champs texte : un souvenir inventé n'a
+  aucune valeur. Un bandeau « depuis hier » résume production, chantiers, mutations, contrats.
+
+Vérifié au navigateur (Playwright, 390x844) : onboarding, 8 champs au chargement, récolte qui verse
+Élan + Points de Stade, écran de retour après 4 jours d'absence, citation du Codex, six onglets
+rendus, zéro erreur console.

@@ -173,4 +173,37 @@ export function processMissedDays() {
   return { missed, shielded };
 }
 
+// Journee "comme d'habitude" : la mediane de tes N derniers jours saisis, champ par champ.
+// C'est le parcours de 30 secondes du Rituel — valider une journee ordinaire sans rien retaper.
+// On ne devine JAMAIS un texte : un commentaire ou un moment fort invente serait un faux souvenir,
+// et la memoire du jeu ne vaut que si elle est vraie.
+export function typicalDay(n = 14) {
+  const fields = allFields();
+  const keys = Object.keys(state.days).filter(k => state.days[k].submittedAt && !state.days[k].missed).sort().slice(-n);
+  if (keys.length < 3) return null;
+  const out = {};
+  const med = (arr) => { const s = arr.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  for (const f of fields) {
+    if (f.type === 'text') continue;
+    const vals = keys.map(k => state.days[k].entries?.[f.id]).filter(v => v !== undefined && v !== null && v !== '');
+    if (vals.length < Math.max(2, Math.ceil(keys.length / 3))) continue;   // trop rare pour etre "habituel"
+    if (f.type === 'multi') {
+      const cnt = {};
+      for (const v of vals) for (const c of (Array.isArray(v) ? v : [])) cnt[c] = (cnt[c] || 0) + 1;
+      const keep = Object.entries(cnt).filter(([, c]) => c >= vals.length / 2).map(([c]) => c);
+      if (keep.length) out[f.id] = keep;
+    } else if (f.type === 'calories') {
+      const d = med(vals.map(v => Number(v?.depense) || 0).filter(Boolean));
+      const m = med(vals.map(v => Number(v?.mange) || 0).filter(Boolean));
+      if (d || m) out[f.id] = { depense: d || undefined, mange: m || undefined };
+    } else if (f.type === 'toggle') {
+      if (vals.filter(Boolean).length > vals.length / 2) out[f.id] = true;
+    } else {
+      const s = vals.map(Number).filter(x => !isNaN(x));
+      if (s.length) { const v = med(s); if (v) out[f.id] = v; }
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export function elanTotalForDay(key) { return state.days[key]?.elan || 0; }

@@ -1,5 +1,5 @@
 {
-  "_comment": "LE BRIEF JOURNALIER. C'est ici qu'on ajoute, retire ou modifie une ligne du Rituel. Chaque champ : id (unique, stable — sert de colonne Notion), label, icon, type, points, cap, pillar, axis. Types : toggle | counter | number | duration (minutes) | scale (1..max) | text | multi (choix multiples) | calories (2 nombres : depense/mange) | meal (kcal + qualite 1-3). Le bareme v2 est repris tel quel (journee parfaite ~166, plafond 293). Un champ ajoute ici apparait automatiquement dans le Rituel, l'Observatoire et la base Notion.",
+  "_comment": "LE BRIEF JOURNALIER. \"core\": true = champ affiche d'emblee dans le Rituel ; les autres sont replies derriere \"Détails\" (le bareme, lui, est inchange : un champ replie compte autant). Le noyau doit suffire a valider les 4 piliers + garder une trace. C'est ici qu'on ajoute, retire ou modifie une ligne du Rituel. Chaque champ : id (unique, stable — sert de colonne Notion), label, icon, type, points, cap, pillar, axis. Types : toggle | counter | number | duration (minutes) | scale (1..max) | text | multi (choix multiples) | calories (2 nombres : depense/mange) | meal (kcal + qualite 1-3). Le bareme v2 est repris tel quel (journee parfaite ~166, plafond 293). Un champ ajoute ici apparait automatiquement dans le Rituel, l'Observatoire et la base Notion.",
   "deadline_hour": 5,
   "retro_days": 7,
   "daily_cap": 293,
@@ -9,8 +9,8 @@
       "title": "Corps",
       "icon": "💪",
       "fields": [
-        { "id": "pas", "label": "Pas", "icon": "👟", "type": "number", "unit": "pas", "step": 500, "quick": [3000, 6000, 8000, 10000, 12000], "points_per": 2, "per_unit": 1000, "cap_points": 30, "pillar": "mouvement", "pillar_threshold": 6000, "axis": "vigueur" },
-        { "id": "sport", "label": "Sport / entraînement", "icon": "🏃", "type": "duration", "quick": [20, 30, 45, 60], "points_per": 8, "per_unit": 30, "cap_points": 16, "pillar": "mouvement", "axis": "vigueur" },
+        { "id": "pas", "core": true, "label": "Pas", "icon": "👟", "type": "number", "unit": "pas", "step": 500, "quick": [3000, 6000, 8000, 10000, 12000], "points_per": 2, "per_unit": 1000, "cap_points": 30, "pillar": "mouvement", "pillar_threshold": 6000, "axis": "vigueur" },
+        { "id": "sport", "core": true, "label": "Sport / entraînement", "icon": "🏃", "type": "duration", "quick": [20, 30, 45, 60], "points_per": 8, "per_unit": 30, "cap_points": 16, "pillar": "mouvement", "axis": "vigueur" },
         { "id": "sommeil", "label": "Sommeil", "icon": "😴", "type": "number", "unit": "h", "step": 0.5, "quick": [5, 6, 7, 8, 9], "points_table": { "min": 7, "max": 9, "points": 8, "else": 0 }, "axis": "robustesse" },
         { "id": "poids", "label": "Poids (optionnel)", "icon": "⚖️", "type": "number", "unit": "kg", "step": 0.1, "points": 0, "optional": true, "axis": null }
       ]
@@ -20,7 +20,7 @@
       "title": "Nutrition",
       "icon": "🍖",
       "fields": [
-        { "id": "calories", "label": "Calories dépensées / mangées", "icon": "🔥", "type": "calories", "deficit_points": 20, "small_surplus_points": 10, "small_surplus_max": 2100, "big_surplus_points": -25, "pillar": "nutrition", "axis": "robustesse", "shadow_on_malus": 1 },
+        { "id": "calories", "core": true, "label": "Calories dépensées / mangées", "icon": "🔥", "type": "calories", "deficit_points": 20, "small_surplus_points": 10, "small_surplus_max": 2100, "big_surplus_points": -25, "pillar": "nutrition", "axis": "robustesse", "shadow_on_malus": 1 },
         { "id": "repas", "label": "Qualité des repas", "icon": "🥗", "type": "multi", "choices": ["Petit-déj sain", "Déjeuner sain", "Dîner sain", "Zéro grignotage", "Zéro alcool"], "points_each": 2, "cap_points": 10, "axis": "robustesse" },
         { "id": "eau", "label": "Hydratation", "icon": "💧", "type": "counter", "unit": "verres", "max": 12, "points_per": 1, "per_unit": 2, "cap_points": 4, "axis": "robustesse" }
       ]
@@ -31,8 +31,8 @@
       "icon": "🧠",
       "fields": [
         { "id": "meditation", "label": "Méditation", "icon": "🧘", "type": "duration", "quick": [5, 10, 15, 20, 30], "points_per": 8, "per_unit": 10, "cap_points": 16, "pillar": "soin", "axis": "esprit" },
-        { "id": "rituels", "label": "Rituels de soin", "icon": "🕯️", "type": "multi", "choices": ["Lecture", "Yoga", "Marche consciente", "Écriture", "Douche froide", "Sans écran 1h avant le lit"], "points_each": 8, "cap_points": 40, "pillar": "soin", "axis": "esprit" },
-        { "id": "humeur", "label": "Humeur", "icon": "🌤️", "type": "scale", "max": 5, "labels": ["😞", "😕", "😐", "🙂", "😄"], "points": 2, "axis": "lien" }
+        { "id": "rituels", "core": true, "label": "Rituels de soin", "icon": "🕯️", "type": "multi", "choices": ["Lecture", "Yoga", "Marche consciente", "Écriture", "Douche froide", "Sans écran 1h avant le lit"], "points_each": 8, "cap_points": 40, "pillar": "soin", "axis": "esprit" },
+        { "id": "humeur", "core": true, "label": "Humeur", "icon": "🌤️", "type": "scale", "max": 5, "labels": ["😞", "😕", "😐", "🙂", "😄"], "points": 2, "axis": "lien" }
       ]
     },
     {
@@ -40,8 +40,8 @@
       "title": "Travail",
       "icon": "🔧",
       "fields": [
-        { "id": "magic_focus", "label": "Magic Focus", "icon": "🎬", "type": "number", "unit": "h", "step": 0.5, "quick": [2, 4, 6, 8], "points_per": 5, "per_unit": 1, "cap_units": 12, "pillar": "travail", "axis": "ingeniosite" },
-        { "id": "chantier", "label": "Chantier Alilou", "icon": "🏗️", "type": "number", "unit": "h", "step": 0.5, "quick": [1, 2, 4, 6], "points_per": 7, "per_unit": 1, "cap_units": 8, "pillar": "travail", "axis": "vigueur" },
+        { "id": "magic_focus", "core": true, "label": "Magic Focus", "icon": "🎬", "type": "number", "unit": "h", "step": 0.5, "quick": [2, 4, 6, 8], "points_per": 5, "per_unit": 1, "cap_units": 12, "pillar": "travail", "axis": "ingeniosite" },
+        { "id": "chantier", "core": true, "label": "Chantier Alilou", "icon": "🏗️", "type": "number", "unit": "h", "step": 0.5, "quick": [1, 2, 4, 6], "points_per": 7, "per_unit": 1, "cap_units": 8, "pillar": "travail", "axis": "vigueur" },
         { "id": "devis_demande", "label": "Devis demandés", "icon": "📨", "type": "counter", "max": 10, "points_per": 5, "per_unit": 1, "cap_points": 25, "axis": "lien", "business": true },
         { "id": "devis_signe", "label": "Devis signés", "icon": "✍️", "type": "counter", "max": 10, "points_per": 10, "per_unit": 1, "cap_points": 50, "axis": "lien", "business": true }
       ]
@@ -52,7 +52,7 @@
       "icon": "📖",
       "fields": [
         { "id": "commentaire", "label": "Commentaire du jour", "icon": "💬", "type": "text", "placeholder": "Ce qui s'est passé, ce que tu as ressenti…", "points": 8, "axis": "lien" },
-        { "id": "moment_fort", "label": "Moment fort", "icon": "⭐", "type": "text", "placeholder": "Le moment que tu veux garder", "points": 4, "axis": "lien" }
+        { "id": "moment_fort", "core": true, "label": "Moment fort", "icon": "⭐", "type": "text", "placeholder": "Le moment que tu veux garder", "points": 4, "axis": "lien" }
       ]
     }
   ],

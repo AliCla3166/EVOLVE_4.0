@@ -1,0 +1,22 @@
+{
+  "_comment": "Textes de la notification du soir. Registre du Codex : jamais de reproche, jamais d'injonction, jamais de mention de la serie. Une phrase par soir, choisie de facon deterministe (seed = date), variante differente selon que le Rituel du jour est deja recolte ou non. Ajouter une phrase = ajouter une chaine.",
+  "default_hour": 21,
+  "default_minute": 0,
+  "title": "EVOLVE",
+  "pending": [
+    "La nuit tombe sur le monde. Ta Lignée attend le récit du jour.",
+    "Quelque part, une membrane a tenu aujourd'hui. Raconte-lui pourquoi.",
+    "Le jour se referme. Ce que tu en dis deviendra un corps.",
+    "Elle ne sait pas que tu existes. Elle attend quand même.",
+    "Il reste une page blanche à la journée.",
+    "Le monde s'endort. Le Rituel, lui, est encore ouvert.",
+    "Une lumière de plus va passer. Elle compte, si tu la comptes.",
+    "Ta Lignée dort mal quand la journée reste sans nom."
+  ],
+  "done": [
+    "Journée récoltée. La Lignée a de quoi grandir cette nuit.",
+    "C'est écrit. Le reste se passe pendant ton sommeil.",
+    "La Colonie travaille pendant que tu dors.",
+    "Rien à faire ce soir. C'est déjà bien."
+  ]
+}

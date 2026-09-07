@@ -7,7 +7,9 @@ import { bus } from './core/events.js';
 import { h, fmt, toast } from './core/ui.js';
 import { tickColony } from './modes/colony.js';
 import { checkCodex } from './modes/codex.js';
+import { showComeback } from './modes/comeback.js';
 import { flushSync } from './core/sync.js';
+import * as notify from './core/notify.js';
 
 const MODES = {};
 let current = null; let currentMod = null;
@@ -42,12 +44,14 @@ async function main() {
   document.getElementById('btn-settings').addEventListener('click', () => navigate('settings'));
   const start = state.settings.onboarded ? (location.hash.slice(1) || 'ritual') : 'settings';
   navigate(start, { onboarding: !state.settings.onboarded });
-  if (res.shielded?.length) toast('🛡️ Bouclier de série utilisé', 'gold');
-  else if (res.missed?.length) toast(`${res.missed.length} jour${res.missed.length > 1 ? 's' : ''} manqué${res.missed.length > 1 ? 's' : ''} — la série repart`, 'red');
-  if (state.settings.onboarded) checkCodex();
+  // Retour apres absence : un accueil qui raconte ce qui s'est passe, pas un toast rouge.
+  // On ne fait pas remonter le Codex par-dessus : il attendra la prochaine recolte.
+  const welcomed = state.settings.onboarded ? showComeback(res, ctx) : false;
+  if (state.settings.onboarded && !welcomed) checkCodex();
+  notify.init();
   setInterval(() => { tickColony(); refreshWallet(); }, 1000);
   setInterval(() => { save(); flushSync(); }, 15000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tickColony(); refreshWallet(); if (dayKey() !== _lastDay) { _lastDay = dayKey(); processMissedDays(); recomputeStreak(); navigate(current); } } else save(true); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tickColony(); refreshWallet(); notify.catchUp(); notify.schedule(); if (dayKey() !== _lastDay) { _lastDay = dayKey(); processMissedDays(); recomputeStreak(); navigate(current); } } else save(true); });
   // Service worker : on force une verification de mise a jour a chaque demarrage (et toutes les
   // heures si l'app reste ouverte). Sans ca, un appareil qui a deja installe l'app peut rester
   // bloque des jours sur une ancienne version. Quand le nouveau worker prend la main, on recharge
