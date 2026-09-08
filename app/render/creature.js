@@ -1,557 +1,216 @@
-// Rendu procédural de la race. Toute la grammaire visuelle vient de render/style.js :
-// trois épaisseurs de trait, quatre valeurs par teinte, une direction de lumière, et chaque
-// partie du corps tracée comme une SILHOUETTE FERMÉE (remplie, ombrée dans son masque,
-// contournée une seule fois). Aucun trait superposé, aucun contour à l'intérieur d'une forme.
-//
-// Trois choses distinguent un archétype, et elles se lisent toutes à 40 px de haut :
-//   1. la MASSE (largeur, hauteur, taille de tête) ;
-//   2. la TÊTE — casque, crête, capuche, couronne de pétales, bandeau : le repère le moins cher
-//      et le plus efficace du style ;
-//   3. le GESTE — la brute frappe de haut en bas, l'éclaireur pique, le tank pousse du bouclier,
-//      le tireur recule à la détente, le soigneur lève son bâton.
-import { makeRng } from '../core/rng.js';
-import {
-  INK, shade, hueShift, tones, weights, form, inner, orb, capsule, membrane,
-  groundShade, gloss, glossIn, golden
-} from './style.js';
-import { drawGear, armSwing, swingPhase, tierForStage } from './gear.js';
-import { genesFor, tintOf, livree, wob } from './genes.js';
-
+// Reliques vivantes. Un corps principal, une carapace, un foyer de détail.
+// Les dix stades héritent du noyau fendu. Grille normalisée, aplats, aucun flou.
+import { INK, shade, hueShift, groundShade } from './style.js';
+import { genesFor, tintOf } from './genes.js';
+import { swingPhase } from './gear.js';
+import { plate, line, oval, nucleus, path, material } from './relic.js';
 export { shade, hueShift };
-
-// Masse, rôle, tête et geste de chaque archétype.
-const ARCH = {
-  eclaireur: { w: .74, h: .84, head: 1.00, role: 'melee', tete: 'bandeau', regard: [.18, .62], geste: { lunge: 1.5, lean: 1.1, rise: 0.1, wind: 0.5 } },
-  brute:     { w: 1.30, h: 1.06, head: .90, role: 'melee', tete: 'crete',   bosses: 3, regard: [-.62, .95], geste: { lunge: 1.0, lean: 1.5, rise: 0.9, wind: 1.4 } },
-  tireur:    { w: .82, h: .90, head: 1.04, role: 'ranged', tete: 'capuche', regard: [-.30, .70], geste: { lunge: -0.5, lean: -0.7, rise: 0.1, wind: 0.3 } },
-  tank:      { w: 1.44, h: .92, head: .80, role: 'tank',   tete: 'casque',  plaques: true, regard: [0, 1.0], geste: { lunge: 0.7, lean: 0.5, rise: 0.0, wind: 0.3 } },
-  soigneur:  { w: .88, h: .96, head: 1.18, role: 'support', tete: 'petales', lumen: true, regard: [.55, .42], geste: { lunge: 0.0, lean: -0.3, rise: 0.7, wind: 0.6 } },
-  boss:      { w: 1.58, h: 1.34, head: 1.08, role: 'melee', tete: 'couronne', bosses: 4, plaques: true, regard: [-.78, 1.05], geste: { lunge: 1.1, lean: 1.4, rise: 1.0, wind: 1.5 } },
-  enemy:     { w: 1, h: 1, head: 1, role: 'melee', tete: 'aucune', regard: [-.4, .8], geste: { lunge: 1, lean: 1, rise: 0.3, wind: 0.8 } }
+export const ARCH = {
+  eclaireur: { w: .85, h: 1, role: 'melee' },
+  brute: { w: 1.18, h: 1.05, role: 'melee' },
+  tireur: { w: .88, h: .96, role: 'ranged' },
+  tank: { w: 1.22, h: .92, role: 'tank' },
+  soigneur: { w: .92, h: 1.03, role: 'support' },
+  boss: { w: 1.28, h: 1.15, role: 'melee' },
+  enemy: { w: 1, h: 1, role: 'melee' }
 };
-export { ARCH };
 
-export function drawCreature(ctx, visual, opts = {}) {
-  const {
-    x = 0, y = 0, size = 80, t: t0 = 0, tint = '#3FB8C9', facing = 1,
-    pose = 'idle', archetype = 'eclaireur', flash = 0, atk = null, dying = 0
-  } = opts;
+function ornament(c, v, G, M, detail) {
+  // Un motif de livrée au maximum, clippé dans la silhouette par l'appelant.
+  if (G.pattern === 'bandes' || G.pattern === 'dorsale') {
+    plate(c, 'M-38-78 L-20-80 -3-12 -17-10Z', M.dark, 0);
+  } else if (G.pattern !== 'uni' && detail) {
+    for (let i = 0; i < 3; i++) oval(c, -21 + i * 8, -55 + i * 9, 2.5, 4, M.dark);
+  }
+  if (v.skin === 'scales' && detail) line(c, 'M-20-58 l5 4 5-4 M-17-46 l5 4 5-4', M.dark, 1.5);
+  if (v.skin === 'fur') plate(c, 'M-30-54 l8 5 -4 5 8 4 -4 6 8 3 -9 4Z', M.dark, 0);
+  if (v.spots && detail) for (let i = 0; i < Math.min(6, v.spot_count || 4); i++) {
+    oval(c, -20 + (i % 2) * 9, -62 + i * 7, 2.3, 2.8, v.spots === 'gold' ? '#FFC24B' : v.spots === 'green' ? '#8CBDA5' : M.dark);
+  }
+  if (G.marque && detail) plate(c, 'M17-64 l8 5 -4 13 -5-2Z', M.light, 0);
+}
+
+function appendages(c, v, M, stage, t, arch) {
+  if (v.tail || v.traine) {
+    c.save(); c.translate(-23, -30); c.rotate(Math.sin(t * 2) * .12);
+    plate(c, 'M4-7 C-17-12-29 8-47-5 Q-34 17-14 6 L4 4Z', M.dark, 1.8);
+    if (v.tail === 'club') plate(c, 'M-46-12 l9 3 3 10 -9 5 -9-8Z', M.bone, 2);
+    c.restore();
+  }
+  if (v.back === 'wings') for (const side of [-1, 1]) {
+    c.save(); c.scale(side, 1); c.rotate(Math.sin(t * 3) * .035);
+    plate(c, 'M-8-49 Q-30-92-48-90 L-41-53 -28-58 -22-34Z', M.dark, 2);
+    plate(c, 'M-19-53 L-43-81 -33-59Z', M.light, 0); c.restore();
+  }
+  if (v.back === 'spikes' || v.back === 'crystals' || arch === 'brute' || arch === 'boss') {
+    const n = Math.min(7, v.spike_count || 3);
+    for (let i = 0; i < n; i++) {
+      c.save(); c.translate(-24 + i * 48 / Math.max(1, n - 1), stage <= 2 ? -68 : -65);
+      plate(c, 'M-6 7 L-3-11 5-20 7 9Z', v.back === 'crystals' ? '#A76BD9' : M.bone, 2); c.restore();
+    }
+  }
+  if (stage <= 2 && (v.limbs === 'cilia' || v.limbs === 'blobs')) {
+    const n = Math.min(10, v.limb_count || 6);
+    for (let i = 0; i < n; i++) {
+      c.save(); c.translate(0, -43); c.rotate(i / n * Math.PI * 2 + Math.sin(t * 2 + i) * .03);
+      plate(c, v.limbs === 'blobs' ? 'M-4-25 Q-14-48 0-49 Q13-47 5-25Z' : 'M-3-27 Q-8-40-4-48 Q-3-38 3-28Z', M.dark, 1.5); c.restore();
+    }
+  }
+}
+
+function face(c, v, G, M, x, y, r, t) {
+  const n = Math.min(3, v.eyes || 1);
+  const er = r * Math.min(1.5, v.eye_size || 1) * (1 + (G.nuit || 0) * .2);
+  const blink = ((t + G.phase) % 5.7) > 5.57;
+  for (let i = 0; i < n; i++) {
+    const ex = x + (n === 1 ? 0 : (i - (n - 1) / 2) * er * 1.7);
+    const ey = y - (n === 3 && i === 1 ? er * 1.4 : 0);
+    if (G.sansYeux || blink) line(c, `M${ex - er * .55} ${ey} h${er * 1.1}`, INK, 2);
+    else nucleus(c, ex, ey, er * (n === 1 ? 1 : .65), v.third_eye && i === 1 ? '#A76BD9' : '#D8CFB8');
+  }
+  if (v.mouth === 'fangs' || v.mouth === 'gueule') {
+    plate(c, `M${x - r} ${y + r * 1.5} q${r} ${r * 1.2} ${r * 2} 0Z`, INK, 0);
+    for (const dx of [-.5, .5]) plate(c, `M${x + dx * r - 1.8} ${y + r * 1.5} l1.8 4 1.8-4Z`, M.bone, 0);
+  }
+}
+
+function weapon(c, role, stage, M, arch, strike) {
+  c.save(); c.translate(27, -35); c.rotate(strike * -.48);
+  const metal = stage < 4 ? M.bone : stage < 8 ? '#C9C5B8' : M.light;
+  if (role === 'tank') {
+    plate(c, 'M-10-21 L6-27 21-19 18 9 6 19 -9 9Z', M.dark, 2.4);
+    plate(c, 'M-6-18 L5-22 5 12 -5 6Z', metal, 0);
+    line(c, 'M10-16 v17', M.light, 2);
+  } else if (role === 'support') {
+    plate(c, 'M-2 15 L-2-30 2-30 3 15Z', M.boneShade, 1.6);
+    plate(c, 'M-9-33 L-6-44 -2-38 2-38 6-44 10-33 2-25 -2-25Z', metal, 2);
+    oval(c, 0, -33, 3.5, 4, M.light);
+  } else if (role === 'ranged') {
+    plate(c, stage < 4 ? 'M-5 6 Q14-8 5-28 L17-18 19-7 3 10Z' : 'M-9-9 L-5-18 8-18 12-24 28-24 32-17 8-7 1 7 -6 5Z', metal, 2);
+    if (stage >= 4) plate(c, 'M11-20 h16 v3 H11Z', M.dark, 0);
+  } else if (arch === 'brute' || arch === 'boss') {
+    plate(c, 'M-2 14 L-2-32 3-32 4 14Z', M.boneShade, 1.6);
+    plate(c, 'M-10-33 L4-41 19-34 15-18 2-23 -10-21Z', metal, 2.2);
+    plate(c, 'M4-37 L15-32 12-23 4-26Z', M.light, 0);
+  } else {
+    plate(c, 'M-2 12 L-2-34 1-47 5-33 3 12Z', metal, 2);
+    plate(c, 'M1-44 L1-13 4-33Z', M.light, 0);
+  }
+  c.restore();
+}
+
+export function drawCreature(ctx, visual = {}, opts = {}) {
+  const { x = 0, y = 0, size = 80, tint = '#3FB8C9', facing = 1, pose = 'idle', archetype = 'eclaireur', flash = 0, dying = 0 } = opts;
   const arch = ARCH[archetype] || ARCH.eclaireur;
+  const v = visual, G = genesFor(v, archetype);
+  const stage = v.stage || ({ cell: 1, cluster: 2, beast: 3, biped: 4, astral: 7, spirit: 9, god: 10 }[v.bodyplan] || 1);
+  const t = (opts.t || 0) + G.phase;
+  const M = material(tintOf(hueShift(tint, v.tint_shift || 0), G));
+  const phase = swingPhase(pose === 'attack' ? opts.atk : null, t);
+  const stride = pose === 'walk' ? Math.sin(t * 8) : 0;
   const role = opts.role || arch.role;
-  // Les genes : la palette, la livree et les irregularites propres a CET individu.
-  let G = genesFor(visual, archetype);
-  // Deux mutations des stades 9-10 empruntent aux lignees leurs proprietes de rendu : la traine
-  // au lieu des jambes, et la translucidite. On copie les genes plutot que de polluer le cache.
-  if (visual.traine || visual.translucide) G = { ...G, traine: G.traine || !!visual.traine, translucide: visual.translucide || G.translucide };
-  // Dephasage : deux cretaures cote a cote ne doivent pas respirer en cadence, sinon la scene
-  // entiere pulse comme un seul objet. C'est le defaut le plus visible d'une foule generee.
-  const t = t0 + G.phase * 0.13;
-  const baseCol = tintOf(visual.tint_shift ? hueShift(tint, visual.tint_shift) : tint, G);
-  const T = tones(baseCol, size);
-  const W = weights(size, visual.outline || 1);
-  const tier = opts.tier ?? tierForStage(visual.stage || 1);
-  const ph = swingPhase(pose === 'attack' ? atk : null, t);
-  const g = arch.geste;
-
-  ctx.save();
-  ctx.translate(x, y);
-  groundShade(ctx, 0, 0, size * .40 * arch.w);   // ancrage : posé AVANT la transformation
-  ctx.scale(facing, 1);
-
-  // Mouvement d'ensemble, propre à l'archétype.
-  const walk = pose === 'walk' ? Math.sin(t * 9) : 0;
-  const bob = pose === 'walk' ? Math.abs(walk) * size * .055 : Math.sin(t * 2.2) * size * .018;
-  const rise = ph.wind * g.rise * size * .05;
-  const lunge = (ph.strike * 11 * g.lunge - ph.wind * 4.5 * g.wind) * size / 100;
-  const lean = pose === 'walk' ? walk * .02 : (ph.strike * .13 - ph.wind * .06) * g.lean;
-  let squash = pose === 'walk' ? 1 + walk * .05 : 1 + Math.sin(t * 2.2) * .02;
-  if (dying) { squash *= 1 - dying * .45; ctx.translate(0, dying * size * .12); ctx.rotate(dying * .3); }
-  ctx.translate(lunge, -bob - rise);
-  ctx.transform(1, 0, -lean, 1, 0, 0);
-  ctx.scale((1 / squash) * (1 + dying * .35), squash);
-  if (flash) ctx.filter = `brightness(${1 + flash * 1.7}) saturate(${1 - flash * .5})`;
-  // Les Luisants sont partiellement translucides (bible §7) — l'ombre au sol, elle, reste pleine.
-  if (G.translucide) ctx.globalAlpha *= G.translucide;
-
-  const A = { ctx, T, W, size, t, visual, arch, pose, role, atk, tier, ph, walk, archetype, G, lw: W.hero };
-  if (visual.aura) drawAura(A, -size * .45);
-  switch (visual.bodyplan || 'cell') {
-    case 'cell': drawCell(A); break;
-    case 'cluster': drawCluster(A); break;
-    case 'beast': drawBeast(A); break;
-    case 'astral': case 'spirit': case 'god': drawBiped(A, visual.bodyplan); break;
-    default: drawBiped(A, 'biped');
+  const c = ctx;
+  c.save(); c.translate(x, y); groundShade(c, 0, 0, size * .34 * arch.w);
+  c.scale(size / 100 * facing, size / 100);
+  c.translate(phase.strike * 7, -Math.abs(stride) * 2 - Math.sin(t * 1.8) * 1.2);
+  c.rotate(dying * .45); c.scale(arch.w * (1 + dying * .2), arch.h * (1 - dying * .45) * (1 + ((v.limb_len || 1) - 1) * .3));
+  c.globalAlpha *= (v.translucide || G.translucide || 1) * (1 - dying * .65);
+  if (flash) c.filter = `brightness(${1 + flash})`;
+  // Anneaux de stade : ouverts et espacés pour laisser respirer la silhouette.
+  if (stage >= 7 || v.aura) {
+    const col = v.aura_color || M.light;
+    c.save(); c.globalAlpha *= .65;
+    if (stage >= 9 || v.aura === 'halo') line(c, 'M-27-81 A31 17 0 1 1 28-80', col, 2.4);
+    else line(c, 'M-43-42 C-66-64 51-81 45-48 M-43-36 C-30-18 56-33 44-48', col, 1.5);
+    if (stage === 8 || v.aura === 'stars') for (const side of [-1, 1]) plate(c, `M${side * 42}-72 l3 5 -3 5 -3-5Z`, col, 0);
+    c.restore();
   }
-  ctx.restore();
-}
-
-// ---------------------------------------------------------------- éléments partagés
-function drawAura(A, cy) {
-  const { ctx, size, t, visual, W } = A; const c = visual.aura_color || '#45D95E';
-  ctx.save(); ctx.globalAlpha = .55 + Math.sin(t * 3) * .12;
-  if (visual.aura === 'halo') {
-    ctx.beginPath(); ctx.ellipse(0, cy - size * .55, size * .34, size * .1, 0, 0, 6.28);
-    ctx.lineWidth = W.hero * 1.1; ctx.strokeStyle = c; ctx.stroke();
-  } else if (visual.aura === 'rings') {
-    for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.ellipse(0, cy + size * .1, size * (.55 + i * .15 + Math.sin(t * 2 + i) * .03), size * (.2 + i * .06), 0, 0, 6.28); ctx.lineWidth = W.struct; ctx.strokeStyle = c; ctx.stroke(); }
-  } else if (visual.aura === 'stars') {
-    for (let i = 0; i < 9; i++) { const p = golden(i, 9, size * .7, size * .45, 1); const a = t * .5; ctx.beginPath(); ctx.arc(p.x * Math.cos(a) - p.y * Math.sin(a), cy + p.x * Math.sin(a) + p.y * Math.cos(a), size * .022, 0, 6.28); ctx.fillStyle = c; ctx.fill(); }
+  appendages(c, v, M, stage, t, archetype);
+  let body;
+  if (stage <= 2) {
+    if (stage === 2) {
+      plate(c, 'M-9-75 Q-42-86-40-53 L-31-29 Q-18-21-10-37Z', M.dark, 2.4);
+      plate(c, 'M9-72 Q38-84 39-54 L31-29 Q17-19 10-37Z', M.dark, 2.4);
+    }
+    body = stage === 1 ? 'M-29-54 Q-31-75-10-79 Q14-85 28-67 Q39-51 28-22 Q21-10 3-9 Q-26-10-30-31Z' : 'M0-78 Q29-69 27-44 L18-17 Q0-3-20-18 L-27-45 Q-28-68 0-78Z';
+    plate(c, body, M.base, 2.6 * (v.outline || 1));
+    c.save(); c.clip(path(body));
+    plate(c, 'M-35-70 Q-18-85 11-77 L-5-62 -20-28 -35-31Z', M.light, 0);
+    plate(c, 'M27-73 Q17-40 27-15 L40-11 44-67Z', M.dark, 0);
+    ornament(c, v, G, M, size >= 50); c.restore();
+    // Une carène et un masque, aucun sourire humain.
+    plate(c, 'M-13-63 Q0-72 15-61 L19-42 7-27 -8-30 -19-44Z', M.dark, 0);
+    face(c, v, G, M, 0, -49, 8, t);
+    if (archetype === 'tank' || v.back === 'shell' || v.skin === 'thick') {
+      plate(c, 'M-30-31 L-33-58 -22-74 -10-78 -16-55 -10-20Z', M.bone, 2);
+    }
+    if (archetype === 'soigneur') line(c, 'M-15-76 Q0-90 15-76', M.bone, 3);
+  } else if (stage === 3) {
+    const leg = (lx, back, offset) => {
+      c.save(); c.translate(lx + stride * offset, 0);
+      c.scale(1, v.limb_len || 1);
+      plate(c, 'M-8-32 L8-32 6-10 12-4 10 0 -8 0 -12-9Z', back ? M.dark : M.base, 2.2); c.restore();
+    };
+    leg(-19, true, 3); leg(20, true, -3);
+    body = 'M-37-45 Q-27-62 8-62 L28-75 44-66 48-47 36-33 16-29 -25-27 -39-34Z';
+    plate(c, body, M.base, 2.6 * (v.outline || 1));
+    c.save(); c.clip(path(body));
+    plate(c, 'M-39-48 Q-17-67 20-57 L4-46 -33-40Z', M.light, 0);
+    ornament(c, v, G, M, size >= 50); c.restore();
+    leg(-23, false, -3); leg(18, false, 3);
+    plate(c, 'M19-68 L32-73 44-64 39-46 26-42 17-53Z', v.back === 'shell' ? M.bone : M.dark, 1.8);
+    face(c, v, G, M, 32, -57, 5.5, t);
   } else {
-    // Halo en trois anneaux d'aplat : le dégradé radial d'avant était le seul de la créature.
-    for (let i = 3; i >= 1; i--) { ctx.save(); ctx.globalAlpha = .1 * i; ctx.beginPath(); ctx.arc(0, cy, size * (.32 + i * .12), 0, 6.28); ctx.fillStyle = c; ctx.fill(); ctx.restore(); }
-  }
-  ctx.restore();
-}
-// Taches : placement déterministe (angle d'or) et SANS contour — un détail intérieur ne
-// s'entoure jamais d'encre, c'est ce qui chargeait l'ancien rendu.
-function spotsClean(A, cx, cy, rx, ry) {
-  const { ctx, visual, T, size } = A; if (!visual.spots) return;
-  const col = visual.spots === 'gold' ? '#FFC24B' : visual.spots === 'green' ? '#45D95E' : T.dark;
-  const n = visual.spot_count || 4;
-  for (let i = 0; i < n; i++) { const p = golden(i, n, rx, ry); inner(ctx, orb(cx + p.x, cy + p.y, size * .042), col); }
-}
-function drawLumen(A, cx, cy, r) {
-  const { ctx, t } = A; const pulse = 1 + Math.sin(t * 3.2) * .1;
-  ctx.save();
-  for (let i = 3; i >= 1; i--) { ctx.globalAlpha = .085 * i; ctx.beginPath(); ctx.arc(cx, cy, r * pulse * (.4 + i * .22), 0, 6.28); ctx.fillStyle = '#8CF5A6'; ctx.fill(); }
-  ctx.restore();
-}
-// L'ŒIL — la pièce la plus chère du personnage, et celle qui coûtait le moins d'attention.
-//
-// Avant : deux disques blancs parfaits, cerclés d'encre, avec un point noir au centre. C'est la
-// signature visuelle du jeu mobile bas de gamme, et aucune palette ne la rattrape.
-// Maintenant, cinq couches, dans l'ordre où un illustrateur les poserait :
-//   1. l'ORBITE — un aplat sombre dans le masque du crâne, pour que l'œil soit DANS la tête ;
-//   2. le BLANC — jamais #FFF (le blanc pur est le tell), et un contour fin, pas un cerne ;
-//   3. l'IRIS coloré + la PUPILLE + UN seul reflet ;
-//   4. la PAUPIÈRE supérieure, dans la couleur de la peau : elle coupe le haut du globe, et
-//      c'est elle, à elle seule, qui fait passer de « pastille » à « regard » ;
-//   5. l'ARCADE, inclinée selon l'archétype : la brute fronce, le soigneur s'ouvre.
-function drawEyes(A, cx, cy, r) {
-  const { ctx, visual, t, ph, W, T, G, arch, size } = A;
-  const n = visual.eyes || 1;
-  const nuit = G ? (G.nuit || 0) : 0;
-  // L'Ombre rend nocturne : l'œil grandit pour capter la lumière (bible, loi VI).
-  const es = r * (visual.eye_size || 1) * (1 + ph.strike * .08) * (1 + nuit * .34);
-  // Les Gris n'ont pas de visage : deux fentes sombres, pas de blanc, pas d'iris.
-  if (G && G.sansYeux) {
-    const sp0 = es * .80;
-    for (const sg of [-1, 1]) {
-      inner(ctx, (c) => { c.beginPath(); c.ellipse(cx + sg * sp0, cy, es * .56, es * .17, sg * .12, 0, 6.28); }, shade(T.base, -.62));
+    const floating = stage >= 7 || v.traine || G.traine;
+    if (!floating) for (const side of [-1, 1]) {
+      c.save(); c.translate(side * 11 + stride * side * 3, -3); c.scale(1, v.limb_len || 1);
+      plate(c, 'M-8-33 L8-33 7-9 13-3 11 2 -9 2 -11-6Z', side < 0 ? M.dark : M.base, 2.2); c.restore();
     }
-    return;
+    else plate(c, stage >= 9 ? 'M-20-36 Q-26-10-10-5 L0 8 5-8 21-15 17-37Z' : 'M-18-35 L-12-14 -4-20 0-6 7-21 15-14 20-35Z', M.dark, 2);
+    body = stage === 5 ? 'M-20-66 L-28-54 -25-32 -34-16 0-21 30-16 23-37 27-55 16-66Z' : stage === 6 ? 'M-17-68 L-32-56 -25-32 -17-23 18-23 29-39 29-59 15-68Z' : stage >= 9 ? 'M0-78 L22-58 13-39 25-22 0-13 -25-22 -13-39 -22-58Z' : 'M-17-67 L-27-56 -20-36 -17-24 18-24 23-41 27-58 14-67Z';
+    plate(c, body, M.base, 2.6 * (v.outline || 1));
+    c.save(); c.clip(path(body));
+    plate(c, 'M-28-65 L-1-66 -7-29 -21-18 -37-21Z', M.light, 0);
+    ornament(c, v, G, M, size >= 50); c.restore();
+    if (stage >= 5) plate(c, 'M-24-61 L-5-64 -7-44 -18-37 -28-49Z', M.bone, 1.8);
+    if (stage === 6 || stage === 8) plate(c, 'M18-65 L33-68 38-50 26-43Z', M.bone, 2);
+    if (stage === 7) plate(c, 'M-19-65 L-32-85 -33-42 -23-28Z', M.bone, 2);
+    if (stage === 8) for (const side of [-1, 1]) { c.save(); c.scale(side, 1); plate(c, 'M34-64 L40-77 48-56 41-37Z', M.bone, 2); c.restore(); }
+    if (stage === 10) for (const side of [-1, 1]) { c.save(); c.scale(side, 1); plate(c, 'M25-68 L39-78 33-42 22-33Z', M.bone, 2); c.restore(); }
+    // Bras continus, une seule jointure à l'épaule.
+    plate(c, 'M-23-57 Q-35-50-31-30 L-25-23 -20-27 -21-43 -16-53Z', M.dark, 2);
+    c.save(); c.translate(phase.strike * 4, -phase.wind * 3);
+    plate(c, 'M19-56 Q32-53 32-38 L29-27 21-26 20-34 22-42 15-50Z', M.base, 2);
+    if (v.hands) oval(c, 26, -27, 5, 5, M.bone, 1.5);
+    c.restore();
+    if (v.limbs === 'arms' && v.limb_count >= 4) for (const side of [-1, 1]) { c.save(); c.scale(side, 1); plate(c, 'M18-39 Q39-33 33-17 L25-14 22-20 26-26 16-29Z', M.dark, 1.8); c.restore(); }
+    c.save(); c.rotate(G.tilt);
+    plate(c, archetype === 'tireur' ? 'M-17-64 L-21-78 0-94 18-82 18-65 4-57Z' : 'M-16-67 L-17-83 -6-90 13-86 20-73 13-60 -4-58Z', M.dark, 2.4);
+    plate(c, 'M-14-81 L-4-87 11-83 4-76 -13-70Z', M.bone, 0);
+    face(c, v, G, M, 3, -73, 5.8, t);
+    c.restore();
+    if (archetype === 'soigneur') line(c, 'M-21-81 Q-25-99 0-101 Q25-98 21-81', M.bone, 2.8);
+    if (archetype === 'brute' || archetype === 'boss') plate(c, 'M-11-86 L-10-97 0-91 9-97 14-84Z', M.bone, 2);
   }
-  const blink = (((t * .9 + (visual.seed || 0) % 3) % 4.6) > 4.46) ? .10 : 1;
-  const look = ph.wind ? -.5 : ph.strike ? .9 : Math.sin(t * .7) * .5;
-  const [tilt, lourd] = arch.regard || [0, .7];
-  const iris = G ? G.iris : shade(T.base, -.5);
-  const SCLERA = '#F6F2E6';                      // ivoire, pas blanc pur
-  const lid = T.lod ? (.17 * lourd + ph.wind * .12) * (1 - nuit * .55) : 0;
-
-  const eye = (ex, ey, er, dir) => {
-    const globe = orb(ex, ey, er, er * .94 * blink);
-    if (T.lod) { ctx.save(); ctx.globalAlpha = .5; inner(ctx, orb(ex, ey + er * .06, er * 1.34, er * 1.24), shade(T.base, -.32)); ctx.restore(); }
-    inner(ctx, globe, SCLERA);
-    if (blink > .3) {
-      ctx.save(); globe(ctx); ctx.clip();
-      inner(ctx, orb(ex + look * er * .34, ey + er * .06, er * .60), iris);
-      inner(ctx, orb(ex + look * er * .34, ey + er * .06, er * .30), INK);
-      // Le reflet non plus n'est pas blanc pur (bible §9) : un blanc chaud, jamais clinique.
-      inner(ctx, orb(ex + look * er * .34 - er * .22, ey - er * .20, er * .15), '#FFFDF2');
-      // paupière : un aplat de peau qui mange le haut du globe
-      if (lid > 0) inner(ctx, orb(ex, ey - er * (2.05 - lid * 2), er * 1.15, er * 1.05), T.base);
-      ctx.restore();
-    }
-    ctx.lineWidth = W.hair; ctx.strokeStyle = 'rgba(23,27,35,.72)'; globe(ctx); ctx.stroke();
-    // arcade : une virgule sombre au-dessus, inclinée. C'est l'expression.
-    if (T.lod) {
-      ctx.save(); ctx.translate(ex, ey - er * 1.06); ctx.rotate(dir * tilt * .5);
-      inner(ctx, (c) => { c.beginPath(); c.ellipse(0, 0, er * 1.05, er * .30, 0, 0, 6.28); }, shade(T.base, -.42));
-      ctx.restore();
-    }
-  };
-
-  // Jamais deux yeux exactement identiques : c'est le tell le plus fort d'une image générée.
-  const eR = G ? G.eyeR : 1, eDy = G ? G.eyeDy : 0;
-  const sp = es * .80, er0 = es * .62;
-  if (n === 1) eye(cx, cy, es * .78, 1);
-  else if (n === 2) { eye(cx - sp, cy + er0 * eDy, er0 * eR, -1); eye(cx + sp * 1.02, cy - er0 * eDy * .6, er0 / eR, 1); }
-  else {
-    eye(cx - sp, cy + er0 * (.25 + eDy), er0 * .82 * eR, -1); eye(cx + sp * 1.02, cy + er0 * .25, er0 * .82 / eR, 1);
-    eye(cx, cy - er0 * 1.05, er0 * (visual.third_eye ? .72 : .56), 0);
-    if (visual.third_eye) inner(ctx, orb(cx, cy - er0 * 1.05, er0 * .26), '#A76BD9');
+  if (v.horns) for (const side of [-1, 1]) { c.save(); c.scale(side, 1); plate(c, 'M15-71 L19-94 27-83 24-69Z', M.bone, 2); c.restore(); }
+  if (v.back === 'shell' && stage >= 3) plate(c, 'M-26-64 Q-42-47-26-28 L-18-32 -20-58Z', M.bone, 2.2);
+  if (!G.sansArme) {
+    c.save();
+    if (stage <= 2) { c.translate(7, -5); c.scale(.8, .8); }
+    if (stage === 3) { c.translate(17, 0); c.scale(.64, .64); }
+    weapon(c, role, stage, M, archetype, phase.strike); c.restore();
   }
-}
-// LA BOUCHE. Un grand sourire en U traversant la face, c'est du sticker. Ici : une bouche
-// courte, posée dans un museau à peine plus clair, qui s'ouvre quand la créature frappe.
-function drawMouth(A, cx, cy, w) {
-  const { ctx, visual, W, T, ph } = A;
-  const open = ph.strike * .8;
-  if (T.lod) { ctx.save(); ctx.globalAlpha = .34; inner(ctx, orb(cx, cy - w * .12, w * 1.15, w * .85), shade(T.base, .24)); ctx.restore(); }
-  if (visual.mouth === 'gueule') {
-    // « Ils ne construisent rien. Ils mangent. » La bouche est plus large que le crâne.
-    const mw = w * 1.72, op = .5 + open * .7;
-    form(ctx, (c) => { c.beginPath(); c.moveTo(cx - mw, cy - w * .18); c.quadraticCurveTo(cx, cy + mw * op, cx + mw, cy - w * .18); c.quadraticCurveTo(cx, cy + w * .12, cx - mw, cy - w * .18); c.closePath(); },
-      { ...T, base: '#3A1A22', mid: '#241016', hi: '#4A222C', band: T.band * .5 }, W.struct);
-    for (let i = -3; i <= 3; i++) {
-      const u = i / 3.4, tx = cx + u * mw * .88, ty = cy - w * .18 + Math.cos(u * 1.4) * mw * op * .30;
-      inner(ctx, (c) => { c.beginPath(); c.moveTo(tx - mw * .09, ty - mw * .04); c.lineTo(tx, ty + mw * .30); c.lineTo(tx + mw * .09, ty - mw * .04); c.closePath(); }, '#F6F2E6');
-    }
-    return;
-  }
-  if (visual.mouth === 'fangs') {
-    const mw = w * .84;
-    form(ctx, (c) => { c.beginPath(); c.moveTo(cx - mw, cy); c.quadraticCurveTo(cx, cy + mw * (.85 + open), cx + mw, cy); c.closePath(); },
-      { ...T, base: '#3A1A22', mid: '#2A1018', hi: '#4A222C', band: T.band * .5 }, W.struct);
-    for (const s2 of [-.5, .5]) inner(ctx, (c) => { c.beginPath(); c.moveTo(cx + mw * s2 - mw * .17, cy); c.lineTo(cx + mw * s2, cy + mw * .48); c.lineTo(cx + mw * s2 + mw * .17, cy); c.closePath(); }, '#F6F2E6');
-  } else if (open > .12) {
-    form(ctx, orb(cx, cy + w * .16, w * .46, w * (.26 + open * .5)), { ...T, base: '#3A1A22', mid: '#2A1018', hi: '#4A222C', band: T.band * .5 }, W.struct);
-  } else {
-    ctx.beginPath(); ctx.moveTo(cx - w * .46, cy); ctx.quadraticCurveTo(cx, cy + w * .46, cx + w * .46, cy);
-    ctx.lineWidth = W.struct; ctx.strokeStyle = 'rgba(23,27,35,.85)'; ctx.lineCap = 'round'; ctx.stroke();
-  }
-}
-
-// La TÊTE : un crâne rond pour tout le monde, plus une coiffe qui dit le rôle.
-// La coiffe est de l'ARMURE — elle se lit en valeur sombre sur le crâne clair, à toutes les
-// palettes de stade. Le métal du palier ne sert qu'aux liserés : un casque crème sur un corps
-// vert lisait comme un bonnet.
-function drawHead(A, hx, hy, hr) {
-  const { ctx, T, W, visual, arch, tier, G } = A;
-  const M = ['#8FD4C1', '#EFE4C8', '#C2CAD6', '#DCE4EE', '#8FE4FF'][Math.min(tier, 4)];
-  const armor = { ...T, base: T.dark, hi: T.mid, mid: shade(T.dark, -0.24) };
-  // Crâne rond en haut, mâchoire qui se resserre vers le menton : la différence entre une
-  // tête et une bille tient dans ces quatre points de contrôle.
-  const headPath = (c) => {
-    c.beginPath();
-    c.ellipse(hx, hy - hr * .05, hr, hr * .99, 0, Math.PI, 0);
-    c.bezierCurveTo(hx + hr * .95, hy + hr * .58, hx + hr * .46, hy + hr * 1.04, hx, hy + hr * 1.04);
-    c.bezierCurveTo(hx - hr * .46, hy + hr * 1.04, hx - hr * .95, hy + hr * .58, hx - hr, hy - hr * .05);
-    c.closePath();
-  };
-  if (arch.tete === 'capuche') {   // capuche : épouse le crâne, dessinée DERRIÈRE lui
-    form(ctx, (c) => { c.beginPath(); c.arc(hx - hr * .04, hy, hr * 1.07, Math.PI * .66, Math.PI * 2.26); c.closePath(); }, { ...T, base: T.mid, hi: T.base, mid: T.dark }, W.hero);
-  }
-  // Oreilles : dessinees DERRIERE le crane, tailles legerement inegales. Une paire d'oreilles
-  // change la silhouette plus qu'un motif ne change la surface — c'est le detail le mieux place.
-  if (G && G.oreille !== 'aucune') for (const s of [-1, 1]) {
-    const k = s === G.side ? 1.06 : 0.92;      // jamais la meme des deux cotes
-    const ox = hx + s * hr * .80, oy = hy - hr * .12;
-    const tone = { ...T, base: T.mid, hi: T.base, mid: T.dark };
-    if (G.oreille === 'ronde') { form(ctx, orb(ox, oy, hr * .30 * k, hr * .32 * k), tone, W.struct); inner(ctx, orb(ox + s * hr * .05, oy, hr * .15 * k, hr * .17 * k), shade(T.base, -.34)); }
-    else {
-      const tall = G.oreille === 'frangee' ? 1.35 : 1.0;
-      form(ctx, (c) => { c.beginPath(); c.moveTo(ox - s * hr * .22, oy + hr * .26); c.lineTo(ox + s * hr * .52 * k, oy - hr * .48 * tall * k); c.lineTo(ox + s * hr * .04, oy - hr * .30); c.closePath(); }, tone, W.struct);
-      inner(ctx, (c) => { c.beginPath(); c.moveTo(ox - s * hr * .10, oy + hr * .16); c.lineTo(ox + s * hr * .34 * k, oy - hr * .34 * tall * k); c.lineTo(ox + s * hr * .02, oy - hr * .20); c.closePath(); }, shade(T.base, -.34));
-    }
-  }
-  if (visual.horns) for (const s of [-1, 1]) form(ctx, (c) => { c.beginPath(); c.moveTo(hx + s * hr * .5, hy - hr * .58); c.lineTo(hx + s * hr * .86, hy - hr * 1.42); c.lineTo(hx + s * hr * .14, hy - hr * .82); c.closePath(); }, { ...T, base: '#F4F1E8', hi: '#FFFFFF', mid: '#CFC9B8' }, W.struct);
-  form(ctx, headPath, T, W.hero);
-  if (arch.tete === 'casque') {
-    form(ctx, (c) => { c.beginPath(); c.arc(hx, hy, hr * 1.03, Math.PI * 1.02, Math.PI * 1.98); c.closePath(); }, armor, W.hero);
-    form(ctx, (c) => { c.beginPath(); c.ellipse(hx + hr * .1, hy - hr * .2, hr * 1.2, hr * .14, 0, 0, 6.28); }, { ...T, base: M, hi: shade(M, .3), mid: shade(M, -.3) }, W.struct);
-  } else if (arch.tete === 'crete') {
-    for (let i = 0; i < 3; i++) { const dx = (i - 1) * hr * .42, h = hr * (.9 - Math.abs(i - 1) * .26); form(ctx, (c) => { c.beginPath(); c.moveTo(hx + dx - hr * .19, hy - hr * .78); c.lineTo(hx + dx, hy - hr * .78 - h); c.lineTo(hx + dx + hr * .19, hy - hr * .78); c.closePath(); }, armor, W.struct); }
-  } else if (arch.tete === 'petales') {
-    for (let i = 0; i < 5; i++) { const a = Math.PI + (i / 4) * Math.PI; form(ctx, (c) => { c.beginPath(); c.ellipse(hx + Math.cos(a) * hr * .86, hy + Math.sin(a) * hr * .86, hr * .3, hr * .17, a, 0, 6.28); }, { ...T, base: '#8CF5A6', hi: '#C6FFD6', mid: '#4FB86B' }, W.hair); }
-  } else if (arch.tete === 'bandeau') {
-    form(ctx, (c) => { c.beginPath(); c.ellipse(hx, hy - hr * .44, hr * 1.0, hr * .19, 0, 0, 6.28); }, { ...T, base: M, hi: shade(M, .3), mid: shade(M, -.32) }, W.hair);
-  } else if (arch.tete === 'couronne') {
-    for (let i = 0; i < 5; i++) { const dx = (i - 2) * hr * .38; form(ctx, (c) => { c.beginPath(); c.moveTo(hx + dx - hr * .16, hy - hr * .82); c.lineTo(hx + dx, hy - hr * 1.34); c.lineTo(hx + dx + hr * .16, hy - hr * .82); c.closePath(); }, { ...T, base: '#FFC24B', hi: '#FFE0A0', mid: '#C98F1E' }, W.hair); }
-  }
-  // Arcade et joue : deux aplats sans encre, DANS le masque du crane. Ils ne coutent aucun trait
-  // et donnent au visage le relief que 31 contours interieurs ne donnaient pas.
-  if (G && T.lod) {
-    ctx.save(); headPath(ctx); ctx.clip(); ctx.globalAlpha = .45;
-    if (G.arcade) inner(ctx, (c) => { c.beginPath(); c.ellipse(hx, hy - hr * .52, hr * .96, hr * .34, 0, 0, 6.28); }, shade(T.base, -.30));
-    if (G.joue) inner(ctx, orb(hx + hr * .40 * G.side, hy + hr * .22, hr * .30, hr * .24), shade(T.base, .26));
-    ctx.restore();
-  }
-  glossIn(ctx, headPath, hx - hr * .36, hy - hr * .42, hr * .28, hr * .15);
-}
-
-// ---------------------------------------------------------------- stade 1 : cellule
-function drawCell(A) {
-  const { ctx, T, W, size, t, visual, arch } = A;
-  const rx = size * .40 * arch.w, ry = size * .37 * arch.h, cy = -size * .42;
-  const body = membrane(0, cy, rx, ry, .05, t, (visual.seed || 1) % 7);
-  if (visual.tail === 'flagellum') {
-    const fx = -rx * .95, wob = Math.sin(t * 7) * size * .07;
-    form(ctx, capsule(fx, cy, fx - size * .46, cy + wob, size * .035, size * .012), { ...T, base: T.mid }, W.struct, { hi: false });
-  }
-  if (visual.limbs === 'cilia') for (let i = 0; i < (visual.limb_count || 8); i++) { const a = (i / (visual.limb_count || 8)) * 6.28, sw = Math.sin(t * 5 + i) * .35; const bx = Math.cos(a) * rx * .98, by = cy + Math.sin(a) * ry * .98; form(ctx, capsule(bx, by, bx + Math.cos(a + sw) * size * .13, by + Math.sin(a + sw) * size * .13, size * .022, size * .008), { ...T, base: T.mid }, W.hair, { hi: false }); }
-  if (visual.limbs === 'blobs') for (let i = 0; i < (visual.limb_count || 4); i++) { const a = -.5 + i * .52 + Math.sin(t * 2 + i) * .12; form(ctx, orb(Math.cos(a) * rx * 1.02, cy + Math.sin(a) * ry * 1.02, size * .11, size * .095), T, W.hero); }
-  if (visual.back === 'spikes') spikes(A, 0, cy, rx, ry, visual.spike_count || 6, -2.6, -.5, size * .16);
-  if (arch.plaques) form(ctx, (c) => { c.beginPath(); c.ellipse(0, cy, rx * 1.16, ry * 1.18, 0, Math.PI * .96, Math.PI * .04); c.closePath(); }, { ...T, base: T.dark, hi: T.mid, mid: shade(T.dark, -.22) }, W.hero);
-  form(ctx, body, T, W.hero);
-  // La brute porte une CRÊTE, pas des pastilles : trois cercles sur le dos passaient pour des yeux.
-  if (arch.bosses) for (let i = 0; i < arch.bosses; i++) {
-    const a = -2.5 + i * (1.6 / arch.bosses);
-    const bx = Math.cos(a) * rx * .96, byy = cy + Math.sin(a) * ry * .96;
-    const h = size * (.13 - Math.abs(i - (arch.bosses - 1) / 2) * .022);
-    form(ctx, (c) => { c.beginPath(); c.moveTo(bx + Math.cos(a + 1.4) * h * .34, byy + Math.sin(a + 1.4) * h * .34); c.lineTo(bx + Math.cos(a) * h, byy + Math.sin(a) * h); c.lineTo(bx + Math.cos(a - 1.4) * h * .34, byy + Math.sin(a - 1.4) * h * .34); c.closePath(); }, { ...T, base: T.dark, hi: T.mid, mid: shade(T.dark, -.2) }, W.struct);
-  }
-  ctx.save(); body(ctx); ctx.clip();
-  livree(ctx, A.G, T, { cx: 0, cy, rx, ry, size });
-  spotsClean(A, 0, cy, rx, ry);
-  if (arch.lumen) drawLumen(A, 0, cy, size * .3);
-  ctx.restore();
-  glossIn(ctx, body, -rx * .38, cy - ry * .48, rx * .2, ry * .11);
-  drawEyes(A, 0, cy - ry * .12, size * .125);
-  drawMouth(A, 0, cy + ry * .40, size * .115);
-  gearAt(A, rx * 1.12, cy + ry * .3, .34);
-}
-
-// ---------------------------------------------------------------- stade 2 : colonie
-function drawCluster(A) {
-  const { ctx, T, W, size, t, visual, arch } = A;
-  const cy = -size * .42;
-  const n = arch.bosses ? 6 : arch.w < .85 ? 3 : 5;
-  const sat = [[-.32, .16, .62], [.34, .13, .64], [-.15, -.33, .56], [.21, -.32, .52], [-.36, -.06, .46], [.37, -.09, .44]].slice(0, n - 1);
-  if (visual.back === 'spikes') spikes(A, 0, cy, size * .48, size * .43, visual.spike_count || 6, -2.7, -.4, size * .15);
-  if (arch.plaques) form(ctx, (c) => { c.beginPath(); c.ellipse(0, cy, size * .47, size * .41, 0, 0, 6.28); }, { ...T, base: T.dark, hi: T.mid, mid: shade(T.dark, -.22) }, W.hero);
-  for (const [dx, dy, s] of sat) form(ctx, membrane(dx * size, cy + dy * size, size * .19 * s * 1.35, size * .17 * s * 1.35, .04, t, dx * 9), { ...T, base: T.mid, hi: T.base, mid: T.dark }, W.hero);
-  const core = membrane(0, cy, size * .29, size * .26, .04, t, 1);
-  form(ctx, core, T, W.hero);
-  ctx.save(); core(ctx); ctx.clip();
-  livree(ctx, A.G, T, { cx: 0, cy, rx: size * .29, ry: size * .26, size });
-  spotsClean(A, 0, cy, size * .29, size * .26);
-  if (arch.lumen) drawLumen(A, 0, cy, size * .28);
-  ctx.restore();
-  glossIn(ctx, core, -size * .11, cy - size * .13, size * .075, size * .04);
-  drawEyes(A, 0, cy - size * .04, size * .115);
-  drawMouth(A, 0, cy + size * .11, size * .095);
-  gearAt(A, size * .5, cy + size * .2, .34);
-}
-
-// ---------------------------------------------------------------- stade 3 : bête
-//
-// Réécrite avec la même règle que le bipède : deux masses (poitrail + arrière-train) au lieu
-// d'une ellipse, un cou visible, quatre pattes articulées, des pieds orientés. Une bête faite
-// d'un seul œuf se lit comme une chenille, quelle que soit la tête qu'on lui pose.
-function drawBeast(A) {
-  const { ctx, T, W, size, t, visual, arch, pose, walk, ph, G } = A;
-  const S = size;
-  const spine = -S * .425 * (0.88 + arch.h * .14);
-  const bw = S * .375 * arch.w, bh = S * .175 * arch.h;
-  const dark = { ...T, base: shade(T.base, -.24), hi: T.mid, mid: shade(T.base, -.36) };
-  const front = { ...T, base: shade(T.base, .09), hi: shade(T.hi, .09) };
-  const step = pose === 'walk' ? walk : 0;
-
-  // patte : cuisse + canon + pied, tous fuselés
-  const leg = (lx, phse, back) => {
-    const TT = back ? dark : front;
-    const L = (spine + bh) * -1 + (back ? 0 : S * .012 * (G.limb - 1) * 10);
-    const kx = lx + step * phse * S * .05, ky = spine + bh * .5 + L * .52;
-    const fx = lx + step * phse * S * .10, fy = -S * .012;
-    form(ctx, capsule(lx, spine + bh * .35, kx, ky, S * .074, S * .052), TT, W.limb, { hi: !back });
-    form(ctx, capsule(kx, ky, fx, fy, S * .052, S * .040), TT, W.limb, { hi: !back });
-    form(ctx, (c) => { c.beginPath(); c.ellipse(fx + S * .026, fy + S * .006, S * .062, S * .034, -.06, 0, 6.28); }, TT, W.limb, { hi: !back });
-  };
-
-  // queue
-  const tw = Math.sin(t * 3 + G.phase) * S * .045;
-  if (visual.tail === 'club') {
-    form(ctx, capsule(-bw * .88, spine, -bw * 1.45, spine - S * .18 + tw, S * .048, S * .028), dark, W.limb, { hi: false });
-    form(ctx, orb(-bw * 1.45, spine - S * .18 + tw, S * .09), { ...T, base: T.mid }, W.limb);
-  } else form(ctx, capsule(-bw * .90, spine, -bw * 1.34, spine - S * .16 + tw, S * .046, S * .015), dark, W.limb, { hi: false });
-
-  leg(-bw * .58, 1, true); leg(bw * .50, -1, true);
-  if (visual.back === 'spikes') spikes(A, 0, spine, bw, bh, visual.spike_count || 6, -2.75, -.45, S * .15);
-  if (visual.back === 'crystals') spikes(A, 0, spine, bw, bh, 5, -2.7, -.5, S * .20, '#A76BD9');
-  if (visual.back === 'wings') for (const sg of [-1, 1]) form(ctx, (c) => { c.beginPath(); c.moveTo(-bw * .1, spine - bh * .5); c.quadraticCurveTo(-bw * .2 + sg * bw * .22, spine - S * .48 - Math.sin(t * 8) * S * .05, -bw * .92 + sg * bw * .1, spine - S * .32); c.quadraticCurveTo(-bw * .5, spine - bh * .3, -bw * .1, spine - bh * .5); c.closePath(); }, { ...T, base: T.mid }, W.struct);
-
-  // TRONC : poitrail plus haut et plus large que l'arrière-train, dos qui plonge — la ligne
-  // qui fait qu'on lit un quadrupède et pas un tube.
-  const body = (c) => {
-    c.beginPath();
-    c.moveTo(bw * .96, spine - bh * .10);
-    c.bezierCurveTo(bw * .70, spine - bh * 1.30, -bw * .55, spine - bh * 1.15, -bw * .95, spine - bh * .22);
-    c.bezierCurveTo(-bw * 1.14, spine + bh * .70, -bw * .60, spine + bh * 1.05, 0, spine + bh * .98);
-    c.bezierCurveTo(bw * .62, spine + bh * .92, bw * 1.10, spine + bh * .55, bw * .96, spine - bh * .10);
-    c.closePath();
-  };
-  if (visual.back === 'shell' || arch.plaques) form(ctx, (c) => { c.beginPath(); c.ellipse(-bw * .10, spine - bh * .30, bw * .90, bh * 1.05, 0, Math.PI, 0); c.closePath(); }, dark, W.hero);
-  form(ctx, body, T, W.hero);
-  ctx.save(); body(ctx); ctx.clip();
-  livree(ctx, G, T, { cx: 0, cy: spine, rx: bw, ry: bh, size: S });
-  if (T.lod) { ctx.save(); ctx.globalAlpha = .34; inner(ctx, orb(bw * .60, spine - bh * .10, bw * .34, bh * .78), shade(T.base, .22)); ctx.restore(); }   // poitrail
-  if (arch.bosses) for (let i = 0; i < 2; i++) inner(ctx, orb(bw * (.3 - i * .55), spine - bh * .35, bw * .28, bh * .40), shade(T.base, -.10));
-  spotsClean(A, 0, spine, bw, bh);
-  if (visual.skin === 'scales') for (let i = 0; i < 6; i++) { const p = golden(i, 6, bw * .8, bh * .7); ctx.beginPath(); ctx.arc(p.x, spine + p.y, S * .045, 0, Math.PI); ctx.lineWidth = W.hair; ctx.strokeStyle = 'rgba(23,27,35,.4)'; ctx.stroke(); }
-  if (arch.lumen) drawLumen(A, 0, spine, bw * .8);
-  ctx.restore();
-  glossIn(ctx, body, -bw * .25, spine - bh * .78, bw * .28, bh * .18);
-
-  leg(-bw * .44, -1, false); leg(bw * .62, 1, false);
-
-  // cou et tête : le cou part du poitrail, en biais. C'est lui qui donne l'attitude.
-  const hr = S * .178 * arch.head;
-  const hx = bw * 1.00 + ph.strike * S * .05, hy = spine - bh * 1.30 + (pose === 'walk' ? walk * S * .018 : 0);
-  form(ctx, capsule(bw * .62, spine - bh * .45, hx - hr * .18, hy + hr * .62, S * .078, S * .058), T, W.limb);
-  ctx.save(); ctx.translate(hx, hy); ctx.rotate(G.tilt); ctx.translate(-hx, -hy);
-  drawHead(A, hx, hy, hr);
-  drawEyes(A, hx + hr * .18, hy - hr * .06, hr * .42);
-  drawMouth(A, hx + hr * .30, hy + hr * .48, hr * .36);
-  ctx.restore();
-  // L'arme d'une bête est au bout de sa patte avant, pas devant son poitrail.
-  gearAt(A, bw * .92, -S * .085, .26, .95);
-}
-
-// ---------------------------------------------------------------- stades 4+ : bipède
-//
-// Réécriture du 07/09/2026. L'ancienne construction était un œuf posé sur deux tiges, avec les
-// bras en croix : la silhouette de figurine, pas de personnage. Quatre changements de fond :
-//   1. PROPORTIONS — la tête passe de 2,1 à 2,8 têtes de haut. En dessous de 2,5, tout se lit
-//      comme un jouet, quelles que soient les couleurs.
-//   2. TORSE — épaules larges, taille marquée, bassin. Une ellipse n'a ni l'un ni l'autre.
-//   3. POSE — bras au repos le long du corps, arme tenue vers le bas. Le bras à l'horizontale
-//      était une pose en T, c'est-à-dire l'absence de pose.
-//   4. PIEDS — orientés vers l'avant. Une bille sous une jambe ne se lit pas comme un appui.
-function drawBiped(A, kind) {
-  const { ctx, T, W, size, t, visual, arch, pose, role, atk, tier, ph, walk, G } = A;
-  const S = size;
-  // Les Luisants empruntent au stade 9 une traîne qu'ils ne devraient pas encore avoir.
-  const spirit = kind === 'spirit' || kind === 'god' || !!G.traine;
-  const skin = kind === 'god' ? { ...T, base: '#F0E4B8', hi: '#FFF8DC', mid: '#D6C48C', dark: '#B39C5E' } : T;
-  const dark = { ...skin, base: skin.dark, hi: skin.mid, mid: shade(skin.dark, -.2) };
-  const front = { ...skin, base: shade(skin.base, .09), hi: shade(skin.hi, .09) };
-
-  // Squelette : trois hauteurs, et tout s'y accroche.
-  const sw = S * .205 * arch.w;                 // demi-largeur d'épaules
-  const hw = S * .142 * arch.w;                 // demi-largeur de bassin
-  const shY = -S * .615, hipY = -S * .335;
-  const hr = S * .175 * arch.head;
-  const hy = shY - S * .10 - hr * .78 + (pose === 'walk' ? Math.abs(walk) * S * .014 : 0);
-  const hx = S * .045;
-  const legLen = (S * .335) * (visual.limb_len || 1);
-  const step = pose === 'walk' ? walk : 0;
-
-  // --- jambe : cuisse fuselée + pied orienté vers l'avant
-  const leg = (lx, phse, back) => {
-    const L = legLen * (back ? 1 : G.limb);
-    const sww = step * phse * S * .09;
-    const TT = back ? dark : front;
-    const ax = lx + sww, ay = hipY + L;
-    form(ctx, capsule(lx, hipY - S * .02, ax, ay, S * .072, S * .050), TT, W.limb, { hi: !back });
-    // pied : une semelle qui avance, pas une bille
-    form(ctx, (c) => { c.beginPath(); c.ellipse(ax + S * .038, ay + S * .012, S * .088, S * .046, -.08, 0, 6.28); }, TT, W.limb, { hi: !back });
-  };
-
-  // --- bras : épaule fusionnée, main, puis l'arme dans le repère du poing
-  const arm = (ax, ay, ang, back, gear) => {
-    ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
-    const TT = back ? dark : front;
-    const L = S * .255 * (back ? 1 : G.limb);
-    form(ctx, capsule(0, 0, L, 0, S * .062, S * .046), TT, W.limb, { hi: !back });
-    form(ctx, orb(L, 0, S * .060), visual.hands ? { ...TT, base: shade(TT.base, .18) } : TT, W.limb, { hi: !back });
-    form(ctx, orb(0, 0, S * .076, S * .072), TT, W.limb, { stroke: false });   // deltoïde, sans encre
-    if (gear && !G.sansArme) { ctx.translate(L, 0); drawGear({ ...A, lw: W.hero }, { role, tier, atk: pose === 'attack' ? atk : null, t }); }
-    ctx.restore();
-  };
-  const swing = pose === 'attack' ? armSwing(atk, t, role) : pose === 'walk' ? step * .40 : Math.sin(t * 2) * .08;
-  // Au repos, un bras pend : l'angle de base est vers le BAS, pas à l'horizontale.
-  // Le bras pend LE LONG du corps : plus l'angle est proche de pi/2, plus il reste collé au torse
-  // et disparaît dedans. On l'écarte assez pour qu'il sorte de la silhouette.
-  const restBack = 2.15, restFront = role === 'tank' ? 1.18 : role === 'ranged' ? 1.28 : 1.42;
-
-  // --- arrière-plan (tout ce qui passe derrière le torse)
-  // Le cou est posé AVANT le torse : dessiné après, sa capsule sombre faisait un plastron noir.
-  form(ctx, capsule(hx * .5, shY + S * .03, hx, hy + hr * .70, S * .052, S * .046), dark, W.limb, { hi: false });
-  if (!spirit) leg(-hw * .62, 1, true);
-  arm(-sw * .96, shY + S * .010, restBack - swing * .30, true, false);
-  if (visual.limbs === 'arms' && (visual.limb_count || 2) >= 4) arm(-sw * .86, shY + S * .11, restBack + .22, true, false);
-  if (visual.back === 'spikes') spikes(A, 0, (shY + hipY) / 2, sw, (hipY - shY) / 2, visual.spike_count || 5, -2.9, -1.5, S * .15);
-  if (visual.back === 'crystals') spikes(A, 0, (shY + hipY) / 2, sw, (hipY - shY) / 2, 4, -2.9, -1.6, S * .20, '#A76BD9');
-  if (visual.back === 'wings') for (const sgn of [0, 1]) form(ctx, (c) => { c.beginPath(); c.moveTo(-sw * .5, shY + S * .04); c.quadraticCurveTo(-sw * 1.5 - sgn * sw * .35, shY - S * .30 - Math.sin(t * 8) * S * .05, -sw * 2.1, shY + S * .16 + sgn * S * .16); c.quadraticCurveTo(-sw * 1.2, shY + S * .18, -sw * .5, shY + S * .04); c.closePath(); }, { ...skin, base: skin.mid }, W.struct);
-  if (visual.back === 'shell' || arch.plaques) form(ctx, orb(-sw * .30, (shY + hipY) / 2, sw * .86, (hipY - shY) * .62), dark, W.hero);
-  if (visual.tail === 'club') { const tw = Math.sin(t * 3) * S * .035; form(ctx, capsule(-hw * .8, hipY - S * .02, -hw * 1.9, hipY - S * .18 + tw, S * .05, S * .03), dark, W.hero, { hi: false }); form(ctx, orb(-hw * 1.9, hipY - S * .18 + tw, S * .085), { ...skin, base: skin.mid }, W.hero); }
-
-  // --- TORSE : épaules larges, taille prise, bassin. Silhouette fermée, un seul contour.
-  const body = (c) => {
-    c.beginPath();
-    c.moveTo(-sw, shY + S * .03);
-    c.bezierCurveTo(-sw * .97, shY + S * .13, -hw * 1.14, hipY - S * .10, -hw * 1.02, hipY + S * .01);
-    c.bezierCurveTo(-hw * .70, hipY + S * .075, hw * .70, hipY + S * .075, hw * 1.02, hipY + S * .01);
-    c.bezierCurveTo(hw * 1.14, hipY - S * .10, sw * .97, shY + S * .13, sw, shY + S * .03);
-    c.bezierCurveTo(sw * .92, shY - S * .085, -sw * .92, shY - S * .085, -sw, shY + S * .03);
-    c.closePath();
-  };
-  form(ctx, body, skin, W.hero);
-  ctx.save(); body(ctx); ctx.clip();
-  if (kind === 'astral') inner(ctx, orb(0, (shY + hipY) / 2, sw * .58, (hipY - shY) * .42), '#4EA8E8');
-  else livree(ctx, G, skin, { cx: 0, cy: (shY + hipY) / 2 + S * .01, rx: sw, ry: (hipY - shY) / 2, size: S });
-  // pectoraux : deux aplats sans encre. C'est ce qui distingue un torse d'un sac.
-  if (T.lod) { ctx.save(); ctx.globalAlpha = .40; for (const sg of [-1, 1]) inner(ctx, orb(sg * sw * .42, shY + S * .085, sw * .40, S * .062), shade(skin.base, sg > 0 ? .22 : -.10)); ctx.restore(); }
-  if (arch.bosses) for (const sg of [-1, 1]) inner(ctx, orb(sg * sw * .55, shY + S * .02, sw * .34, S * .05), shade(skin.base, -.12));
-  if (arch.plaques) { inner(ctx, (c) => { c.beginPath(); c.rect(-sw, hipY - S * .085, sw * 2, S * .055); }, shade(skin.base, -.16)); inner(ctx, (c) => { c.beginPath(); c.rect(-sw, hipY - S * .03, sw * 2, S * .022); }, shade(skin.base, .24)); }
-  spotsClean(A, 0, (shY + hipY) / 2, sw, (hipY - shY) / 2);
-  if (arch.lumen) drawLumen(A, 0, (shY + hipY) / 2, sw * 1.1);
-  ctx.restore();
-  glossIn(ctx, body, -sw * .50, shY + S * .045, sw * .22, S * .045);
-
-  // --- avant-plan
-  if (!spirit) leg(hw * .52, -1, false);
-  else {
-    // Pas de jambes : une traîne. Trois voiles décalés qui descendent au sol — sans elle,
-    // les stades 9 et 10 flottaient comme un buste coupé.
-    for (let i = 2; i >= 0; i--) {
-      const ph2 = t * 1.6 + i * 2.1 + G.phase, amp = S * .05 * (1 + i * .3);
-      const w2 = hw * (1.05 - i * .16), drop = S * (.30 + i * .045);
-      ctx.save(); ctx.globalAlpha = i === 0 ? 1 : .42 - i * .10;
-      form(ctx, (c) => {
-        c.beginPath();
-        c.moveTo(-w2, hipY - S * .04);
-        c.quadraticCurveTo(-w2 * .9 + Math.sin(ph2) * amp, hipY + drop * .6, Math.sin(ph2 + 1) * amp * 1.4, hipY + drop);
-        c.quadraticCurveTo(w2 * .9 + Math.sin(ph2) * amp, hipY + drop * .6, w2, hipY - S * .04);
-        c.closePath();
-      }, { ...skin, base: i === 0 ? skin.mid : skin.base, hi: skin.hi, mid: skin.dark }, W.limb, { stroke: i === 0, hi: false });
-      ctx.restore();
-    }
-  }
-
-  // --- tête
-  ctx.save(); ctx.translate(hx, hy); ctx.rotate(G.tilt); ctx.translate(-hx, -hy);
-  drawHead(A, hx, hy, hr);
-  if (kind === 'god') { ctx.beginPath(); ctx.ellipse(hx, hy - hr * 1.45, hr * .66, hr * .19, 0, 0, 6.28); ctx.lineWidth = W.struct; ctx.strokeStyle = '#FFC24B'; ctx.stroke(); }
-  drawEyes(A, hx + hr * .10, hy - hr * .02, hr * .40);
-  drawMouth(A, hx + hr * .16, hy + hr * .52, hr * .34);
-  ctx.restore();
-  // Un tank tient son bouclier DEVANT, pas dans le dos : arme toujours au bras avant.
-  arm(sw * .96, shY + S * .010, restFront + swing, false, true);
-  if (visual.limbs === 'arms' && (visual.limb_count || 2) >= 4) arm(sw * .86, shY + S * .13, restFront - .28 + swing * .4, false, false);
-}
-
-// Piquants : formes fermées, une seule épaisseur.
-function spikes(A, cx, cy, rx, ry, count, fromA, toA, len0, col) {
-  const { ctx, T, W, G } = A;
-  const tone = col ? { ...T, base: col, hi: shade(col, .25), mid: shade(col, -.25) } : { ...T, base: T.dark, hi: T.mid, mid: shade(T.dark, -.2) };
-  for (let i = 0; i < count; i++) {
-    // Une rangee de piquants tous identiques se lit comme un peigne. On jittere longueur ET angle.
-    const j = G ? wob(G, i) : 0;
-    const len = len0 * (1 + j * (G ? G.jitter : 0));
-    const a = fromA + (toA - fromA) * (i / (count - 1 || 1)) + j * .07;
-    const bx = cx + Math.cos(a) * rx * .94, by = cy + Math.sin(a) * ry * .94;
-    form(ctx, (c) => { c.beginPath(); c.moveTo(bx + Math.cos(a + 1.35) * len * .26, by + Math.sin(a + 1.35) * len * .26); c.lineTo(bx + Math.cos(a) * len, by + Math.sin(a) * len); c.lineTo(bx + Math.cos(a - 1.35) * len * .26, by + Math.sin(a - 1.35) * len * .26); c.closePath(); }, tone, W.struct);
-  }
-}
-
-// Ancrage de l'arme pour les morphologies sans bras.
-function gearAt(A, x, y, scale, base = 0) {
-  const { ctx, size, role, atk, tier, pose, t, W, G } = A;
-  if (G && G.sansArme) return;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(base + armSwing(pose === 'attack' ? atk : null, t, role) * .8);
-  drawGear({ ...A, size: size * (scale / .25) * .9, W: weights(size * (scale / .25) * .9), lw: W.hero * .9 }, { role, tier, atk: pose === 'attack' ? atk : null, t });
-  ctx.restore();
+  c.restore();
 }
 
 export function renderToCanvas(canvas, visual, opts = {}) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = canvas.clientWidth || 100, hgt = canvas.clientHeight || 100;
-  canvas.width = w * dpr; canvas.height = hgt * dpr;
+  const w = canvas.clientWidth || 100, height = canvas.clientHeight || 100;
+  canvas.width = w * dpr; canvas.height = height * dpr;
   const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, w, hgt);
-  drawCreature(ctx, visual, { x: w / 2, y: hgt * .88, size: Math.min(w, hgt) * (opts.scale || .9), ...opts });
+  ctx.clearRect(0, 0, w, height);
+  const arch = ARCH[opts.archetype] || ARCH.eclaireur;
+  const length = 1 + ((visual.limb_len || 1) - 1) * .3;
+  const size = Math.min(Math.min(w, height) * (opts.scale || .78), w / (1.8 * arch.w), height * .74 / (arch.h * length));
+  drawCreature(ctx, visual, { x: w / 2, y: height * .88, ...opts, size });
 }

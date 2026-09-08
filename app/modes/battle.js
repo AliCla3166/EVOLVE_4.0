@@ -1,3 +1,4 @@
+import { drawBuilding as drawBuildingArt, drawTurret } from '../render/buildings.js';
 // La Bataille — couloir horizontal facon We Are Warriors.
 // Trois terrains : campaign (base contre base), defense (vagues, source de Points de Stade
 // COMPLEMENTAIRE du Rituel), raid (butin).
@@ -1394,17 +1395,7 @@ function groundShadow(g, px, py, r) {
 function drawBase(g, base, color, facing) {
   const p = project(base.x);
   const r = unitRef() * V().base_scale * p.s;
-  groundShadow(g, p.px, p.py, r * 1.15);
-  g.beginPath();
-  g.moveTo(p.px - r * 1.2, p.py);
-  g.quadraticCurveTo(p.px - r * 1.1, p.py - r * 1.7, p.px, p.py - r * 1.8);
-  g.quadraticCurveTo(p.px + r * 1.1, p.py - r * 1.7, p.px + r * 1.2, p.py);
-  g.closePath();
-  g.fillStyle = color; g.fill();
-  g.lineWidth = 6; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-  // entree
-  g.beginPath(); g.ellipse(p.px + facing * r * 0.45, p.py - r * 0.45, r * 0.35, r * 0.5, 0, 0, Math.PI * 2);
-  g.fillStyle = INK; g.fill();
+  drawBuildingArt(g, { x: p.px, y: p.py, s: r, shape: 'core', palette: { ...B.st.palette, tint: color }, aquatic: B.st.n <= 2, badge: false, t: B.time });
   // barre de PV
   const bw = r * 2.2, bh = Math.max(9, 12 * p.s), by = p.py - r * 2.3;
   g.fillStyle = INK; g.fillRect(p.px - bw / 2, by, bw, bh);
@@ -1420,52 +1411,9 @@ function drawBase(g, base, color, facing) {
 function drawTurrets(g) {
   for (const t of B.turrets) {
     const p = project(t.x, t.row);
-    const s = unitRef() * 0.68 * p.s;
-    const lw = Math.max(2, 4 * p.s);
-    const f = t.fireT || 0;
-    groundShadow(g, p.px, p.py, s * 1.3);
-    g.save(); g.translate(p.px, p.py);
-    const shape = t.def.shape || (t.def.heal ? 'autel' : 'baliste');
-    if (shape === 'machoire') {
-      // Pieux au sol : ecartes au repos, ils se referment d'un coup a la frappe.
-      const open = 0.55 - f * 0.5;
-      for (const d of [-1, 1]) {
-        g.save(); g.translate(d * s * 0.5, 0); g.rotate(d * open);
-        g.beginPath(); g.moveTo(-s * 0.22, 0); g.lineTo(0, -s * 1.1); g.lineTo(s * 0.22, 0); g.closePath();
-        g.fillStyle = '#CBD4E0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-        g.restore();
-      }
-      g.beginPath(); g.ellipse(0, 0, s * 0.9, s * 0.28, 0, 0, 6.28);
-      g.fillStyle = '#4A5468'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
-    } else if (shape === 'autel') {
-      // Autel : socle a gradins, orbe qui flotte, onde verte a chaque soin.
-      g.beginPath(); g.moveTo(-s * 0.8, 0); g.lineTo(-s * 0.55, -s * 0.75); g.lineTo(s * 0.55, -s * 0.75); g.lineTo(s * 0.8, 0); g.closePath();
-      g.fillStyle = '#E8E2D0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-      const bob = Math.sin(B.time * 2.2) * s * 0.08;
-      if (f > 0.05) { g.save(); g.globalAlpha = f * 0.8; g.beginPath(); g.arc(0, -s * 1.15 + bob, s * (0.5 + (1 - f) * 1.3), 0, 6.28); g.lineWidth = lw; g.strokeStyle = '#45D95E'; g.stroke(); g.restore(); }
-      g.beginPath(); g.arc(0, -s * 1.15 + bob, s * (0.34 + f * 0.1), 0, 6.28);
-      g.fillStyle = '#45D95E'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
-      g.beginPath(); g.arc(-s * 0.12, -s * 1.28 + bob, s * 0.1, 0, 6.28); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
-    } else {
-      // Baliste : tour trapue, bras qui recule puis claque vers l'avant, eclat a la bouche.
-      g.beginPath(); g.moveTo(-s * 0.62, 0); g.lineTo(-s * 0.45, -s * 1.0); g.lineTo(s * 0.45, -s * 1.0); g.lineTo(s * 0.62, 0); g.closePath();
-      g.fillStyle = '#A6B0C0'; g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-      g.beginPath(); g.moveTo(-s * 0.52, -s * 1.0); g.lineTo(s * 0.52, -s * 1.0); g.lineTo(s * 0.4, -s * 1.2); g.lineTo(-s * 0.4, -s * 1.2); g.closePath();
-      g.fillStyle = '#CBD4E0'; g.fill(); g.lineWidth = lw * 0.8; g.strokeStyle = INK; g.stroke();
-      const dir = t.aim || 1;
-      g.save(); g.translate(0, -s * 1.3); g.rotate(dir * (0.2 - f * 0.75));
-      g.beginPath(); g.moveTo(-s * 0.1, -s * 0.1); g.lineTo(s * 0.95 * dir, -s * 0.14); g.lineTo(s * 0.95 * dir, s * 0.1); g.lineTo(-s * 0.1, s * 0.1); g.closePath();
-      g.fillStyle = '#C99464'; g.fill(); g.lineWidth = lw * 0.9; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-      g.restore();
-      if (f > 0.4) { g.save(); g.globalAlpha = (f - 0.4) / 0.6; g.beginPath(); g.arc(dir * s * 0.9, -s * 1.35, s * 0.3 * f, 0, 6.28); g.fillStyle = '#FFC24B'; g.fill(); g.restore(); }
-    }
-    if (t.level > 1) {
-      g.beginPath(); g.arc(s * 0.75, -s * 0.15, s * 0.3, 0, 6.28);
-      g.fillStyle = '#FFC24B'; g.fill(); g.lineWidth = lw * 0.6; g.strokeStyle = INK; g.stroke();
-      g.font = `${Math.round(s * 0.42)}px 'Lilita One', sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#3A2600'; g.fillText(String(t.level), s * 0.75, -s * 0.13);
-    }
-    g.restore();
+    drawTurret(g, { x: p.px, y: p.py, s: unitRef() * .68 * p.s,
+      shape: t.def.shape || (t.def.heal ? 'autel' : 'baliste'), tint: B.st.palette.tint,
+      t: B.time, fire: t.fireT || 0, facing: t.aim || 1, level: t.level });
   }
 }
 

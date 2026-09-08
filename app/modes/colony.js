@@ -359,6 +359,7 @@ function openDetail(id) {
 
   const m = modal(h('div', {},
     h('h2', { class: 'modal-title' }, nameOf(id)),
+    buildingPreview(core ? 'core' : def.shape, Math.max(1, lvl), nameOf(id)),
     h('p', { class: 'modal-text' }, describe(id, def, core)),
     h('div', { class: 'card-soft col gap' },
       h('div', { style: { fontFamily: 'var(--display)', fontSize: '15px' } }, lvl ? `Niveau ${lvl} → ${L}` : `Construction (niveau ${L})`),
@@ -373,6 +374,15 @@ function openDetail(id) {
         onClick: () => { const err = startBuild(id); if (err) toast(err, 'red'); else m.close(); }
       }))));
 }
+// Aperçu du bâtiment avant construction : même dessin que sur la carte.
+function buildingPreview(shape, level, label) {
+  const cv = h('canvas', { width: 400, height: 240, role: 'img', 'aria-label': label,
+    style: { width: '200px', height: '120px', display: 'block', margin: '0 auto 12px' } });
+  const c = cv.getContext('2d'); c.scale(2, 2);
+  drawBuildingArt(c, { x: 100, y: 107, s: 44, shape, level, badge: false, palette: stage().palette, aquatic: isAquatic(), t: 1.2 });
+  return cv;
+}
+
 function statRow(label, from, to) {
   const F = v => typeof v === 'number' ? fmt(v) : String(v); // ne pas passer les libelles dans fmt()
   return h('div', { class: 'row between' },
@@ -600,15 +610,7 @@ function drawEnvelope(ctx, g, p) {
 
 function drawCore(ctx, g, p, t) {
   const x = g.cx, y = g.cy, r = Math.min(g.w * 0.11, 40);
-  // monticule
-  ctx.beginPath(); ctx.ellipse(x, y + r * 0.55, r * 1.25, r * 0.35, 0, 0, 6.28);
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.9 + Math.sin(t * 1.6) * 1.5, 0, 0, 6.28);
-  ctx.fillStyle = p.tint; ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(x, y, r * 0.6, r * 0.55, 0, 0, 6.28);
-  ctx.fillStyle = shade(p.tint, .25); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x - r * .3, y - r * .4, r * .2, r * .1, -0.5, 0, 6.28);
-  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+  drawBuildingArt(ctx, { x, y: y + r * .48, s: r, shape: 'core', level: state.colony.coreLevel, badge: false, palette: p, aquatic: isAquatic(), t });
   // nom du Coeur
   const label = skinName(C().core.names);
   ctx.font = '700 12px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EVOLVE — Reliques vivantes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+<link rel="stylesheet" href="../style.css">
+<style>
+body{display:block;overflow:auto;height:auto;margin:0;background:#20262F;color:#F4F1E8;font-family:Nunito,system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:40px 24px}h1{font:42px 'Lilita One',sans-serif;margin:8px 0 12px}h2{font:25px 'Lilita One',sans-serif;margin:36px 0 16px}.eyebrow{color:#FFC24B;letter-spacing:3px;font-size:12px;font-weight:900}p{max-width:730px;line-height:1.65;color:#bcc5d0}a{color:#FFC24B}.toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:end;padding:18px;background:#2C3440;border-radius:14px;margin:24px 0}label{display:grid;gap:8px;font-size:12px;font-weight:900}select,button{font:700 14px Nunito,sans-serif;color:#F4F1E8;background:#20262F;border:1px solid #3E4A5C;border-radius:8px;padding:10px}button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.card{background:#2C3440;border:1px solid #3E4A5C;border-radius:14px;overflow:hidden}.card canvas{display:block;width:100%;height:170px}.label{padding:12px 14px;font-size:12px;font-weight:900;border-top:1px solid #3E4A5C}.label small{display:block;margin-top:4px;color:#98a6b9;font-weight:700}.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(85px,1fr));gap:8px}.icon{display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 4px;background:#2C3440;border-radius:10px;font-size:10px}.duo{display:grid;grid-template-columns:1fr 1fr;gap:20px}.hero canvas{height:260px}.note{font-size:12px;color:#98a6b9}#checks{padding:16px;background:#171B23;border-radius:10px;font-size:13px}footer{margin-top:36px;border-top:1px solid #3E4A5C;padding-top:20px}@media(max-width:700px){main{padding:24px 16px}h1{font-size:32px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.duo{grid-template-columns:1fr}.toolbar{gap:12px}.card canvas{height:150px}}
+</style></head><body><main>
+<div class="eyebrow">EVOLVE / ATELIER DES ASSETS / 0.8</div>
+<h1>Reliques vivantes</h1>
+<p>Une cellule qui apprend à bâtir, puis à habiter les étoiles. Le même noyau fendu traverse les corps, les outils et les monuments. Des formes compactes et sculptées, une lumière franche, des surfaces qui respirent.</p>
+<div class="toolbar">
+<label>Stade<select id="stage"></select></label>
+<label>Geste<select id="pose"><option value="idle">Au repos</option><option value="walk">Marche</option><option value="attack">Attaque</option></select></label>
+<label>Mutation<select id="mutation"><option value="">Corps d'origine</option></select></label>
+<label>Individu<select id="seed"><option value="3166">Lignée 3166</option><option value="741">Lignée 741</option><option value="2026">Lignée 2026</option></select></label>
+<button id="pause">Mettre en pause</button><button id="export">Exporter la planche PNG</button>
+</div>
+<section id="export-result" hidden aria-live="polite"><h2>Ta planche est prête</h2><a id="download" download="EVOLVE-reliques-vivantes.png">Télécharger le PNG</a><img id="export-image" alt="Planche des dix stades et des bâtiments EVOLVE" style="display:block;width:100%;margin:16px 0;border-radius:14px"></section>
+<div class="duo"><div><h2>Le corps hérité</h2><div id="hero" class="card hero"></div></div><div><h2>À l’échelle du jeu</h2><div id="sizes" class="card hero"></div></div></div>
+<h2>Cinq fonctions, cinq silhouettes</h2><div class="grid" id="roles"></div>
+<h2>De la cellule au divin</h2><div class="grid" id="stages"></div>
+<h2>Une architecture qui descend du vivant</h2><p class="note">Les douze bâtiments, le Cœur et les trois tourelles. Les matériaux suivent le stade sélectionné ; chaque fonction conserve sa silhouette sous l’eau.</p><div class="grid" id="buildings"></div>
+<h2>Les lignées rivales</h2><div class="grid" id="factions"></div>
+<h2>Les signes du quotidien</h2><div class="icons" id="icons"></div>
+<h2>Vérifications du rendu</h2><div id="checks" role="status">Vérification en cours…</div>
+<footer><a href="../index.html">Ouvrir le jeu</a><p class="note">Atelier indépendant : aucune lecture ni modification de ta sauvegarde. Charte, économie et données de vie conservées. Les références nourrissent le vocabulaire visuel ; aucun asset de ces jeux n’est repris.</p></footer>
+</main><script type="module" src="./assets-preview.js"></script></body></html>

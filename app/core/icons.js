@@ -1,3 +1,4 @@
+import { RELIC_ICONS } from './relic-icons.js';
 // LES ICÔNES. Bible de Wallachie, §9 : « on ne dessine jamais un emoji ».
 //
 // Pourquoi ce fichier existe : l'interface portait 83 glyphes emoji différents, 277 occurrences.
@@ -192,7 +193,8 @@ export const ICONS = {
   hum2: [disc(C.ambre), ['l', 'M7 15.8 c2.5-1.8 7.5-1.8 10 0', INK, 2.6]],
   hum3: [disc(C.gris), ['l', 'M7 15 h10', INK, 2.6]],
   hum4: [disc('#8FC54A'), ['l', 'M7 13.6 c2.5 1.8 7.5 1.8 10 0', INK, 2.6]],
-  hum5: [disc(C.vert), ['l', 'M6.5 12.6 c2.5 4 8.5 4 11 0', INK, 2.6]]
+  hum5: [disc(C.vert), ['l', 'M6.5 12.6 c2.5 4 8.5 4 11 0', INK, 2.6]],
+  ...RELIC_ICONS
 };
 
 // ---------------------------------------------------------------------------
@@ -222,6 +224,8 @@ export const EMOJI = {
   '🟢': 'point', '⚪': 'pointg', '💠': 'rubis', '★': 'moment', '✦': 'essence'
 };
 
+const LABELS = { hum1: 'Humeur très basse', hum2: 'Humeur basse', hum3: 'Humeur neutre', hum4: 'Bonne humeur', hum5: 'Très bonne humeur' };
+
 const NS = 'http://www.w3.org/2000/svg';
 function el(n, a) { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; }
 
@@ -231,7 +235,7 @@ export function svgIcon(name, size = 20) {
   const shapes = ICONS[name];
   if (!shapes) return null;
   const s = el('svg', { viewBox: '0 0 24 24', width: size, height: size, class: 'ico', 'aria-hidden': 'true', focusable: 'false' });
-  const g = el('g', { stroke: INK, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'paint-order': 'stroke' });
+  const g = el('g', { stroke: 'none', 'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'paint-order': 'stroke' });
   for (const sh of shapes) {
     const k = sh[0];
     if (k === 'c') g.append(el('circle', { cx: sh[1], cy: sh[2], r: sh[3], fill: sh[4] }));
@@ -240,6 +244,8 @@ export function svgIcon(name, size = 20) {
     else if (k === 'p') g.append(el('path', { d: sh[1], fill: sh[2] }));
     else if (k === 'l') g.append(el('path', { d: sh[1], fill: 'none', stroke: sh[2] || INK, 'stroke-width': sh[3] || 1.6, 'paint-order': 'normal' }));
   }
+  const first = g.firstElementChild;
+  if (first && shapes[0][0] !== 'l') first.setAttribute('stroke', INK);
   s.append(g);
   return s;
 }
@@ -255,17 +261,25 @@ export function stripEmoji(str) {
 const RE = new RegExp(Object.keys(EMOJI).sort((a, b) => b.length - a.length)
   .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + '|\\uFE0F', 'g');
 
+// RegExp globale : test() avance lastIndex. Toujours réinitialiser avant de filtrer un nœud.
+function hasIcon(text) { RE.lastIndex = 0; return RE.test(text); }
+
 // Remplace, dans un arbre DOM déjà construit, chaque emoji connu par son icône. Un seul point
 // d'entrée : aucun appel à réécrire dans les cinq modes.
 export function iconify(root, size = 18) {
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => (n.nodeValue && RE.test(n.nodeValue) && !n.parentElement?.closest?.('svg,input,textarea'))
+    acceptNode: (n) => (n.nodeValue && hasIcon(n.nodeValue) && !n.parentElement?.closest?.('svg,input,textarea'))
       ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
   });
   const todo = [];
   while (walker.nextNode()) todo.push(walker.currentNode);
   for (const node of todo) {
+    const parent = node.parentElement;
+    const name = EMOJI[node.nodeValue.trim()];
+    if (name && parent?.matches('button') && !parent.getAttribute('aria-label') && parent.textContent.trim() === node.nodeValue.trim()) {
+      parent.setAttribute('aria-label', LABELS[name] || name);
+    }
     const frag = document.createDocumentFragment();
     let last = 0; RE.lastIndex = 0; let m;
     const txt = node.nodeValue;
@@ -290,7 +304,7 @@ export function watch(root) {
     obs.disconnect();
     for (const mu of muts) for (const n of mu.addedNodes) {
       if (n.nodeType === 1) iconify(n);
-      else if (n.nodeType === 3 && RE.test(n.nodeValue || '')) iconify(n.parentNode);
+      else if (n.nodeType === 3 && hasIcon(n.nodeValue || '')) iconify(n.parentNode);
     }
     obs.observe(root, { childList: true, subtree: true });
   });

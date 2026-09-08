@@ -2,7 +2,7 @@
 // CACHE porte un numero de version : le changer suffit a purger l'ancien cache chez tout le monde
 // (activate supprime tous les caches dont le nom differe). A incrementer a chaque mise en ligne
 // qui change le code, sinon un appareil deja installe peut continuer a servir d'anciens fichiers.
-const CACHE = 'evolve4-v0.7.0';
+const CACHE = 'evolve4-v0.8.0';
 const CORE = ['./', './index.html', './style.css', './manifest.json', './app/main.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
