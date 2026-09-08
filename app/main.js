@@ -11,6 +11,7 @@ import { showComeback } from './modes/comeback.js';
 import { flushSync } from './core/sync.js';
 import * as notify from './core/notify.js';
 import { watch as watchIcons, iconify } from './core/icons.js';
+import * as audio from './core/audio.js';
 
 const MODES = {};
 let current = null; let currentMod = null;
@@ -47,6 +48,12 @@ async function main() {
   // Bible de Wallachie, §9 : « on ne dessine jamais un emoji ». Un seul observateur remplace
   // chaque glyphe par son icône, partout, sans qu'aucun mode ait à le savoir.
   watchIcons(document.body);
+  // Le son : une nappe par âge et des sons accordés sur la tonalité du stade. Tout est branché
+  // ici, sur le bus — aucun mode n'a besoin de savoir que le son existe.
+  audio.init();
+  bus.on('day:submitted', () => audio.play('harvest'));
+  bus.on('stagepoints:changed', () => audio.play('gain'));
+  bus.on('stage:changed', () => { audio.play('morph'); setTimeout(() => audio.ambience(), 900); });
   navigate(start, { onboarding: !state.settings.onboarded });
   // Retour apres absence : un accueil qui raconte ce qui s'est passe, pas un toast rouge.
   // On ne fait pas remonter le Codex par-dessus : il attendra la prochaine recolte.

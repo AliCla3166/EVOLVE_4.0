@@ -8,6 +8,7 @@ import { config } from '../core/config.js';
 import { state, save } from '../core/state.js';
 import { fmtDay } from '../core/clock.js';
 import { toast, modal, h, btn } from '../core/ui.js';
+import { dernieresNotules } from '../core/notule.js';
 
 // Le moment fort le plus recent (14 jours glissants). Null si tu n'en as ecrit aucun.
 function recentQuote() {
@@ -74,6 +75,23 @@ export function renderCodexList() {
   }
   return wrap;
 }
+// LE JOURNAL DE TERRAIN. Le Codex raconte le monde ; celui-ci raconte le joueur, dans la meme
+// voix. C'est la seule page du jeu que personne d'autre ne pourrait ecrire.
+export function renderJournal() {
+  const notes = dernieresNotules(14);
+  const wrap = h('div');
+  if (!notes.length) {
+    wrap.append(h('p', { class: 'muted small' },
+      'Les notes apparaîtront quand la Lignée aura assez de journées pour savoir ce qui, chez toi, sort de l\'ordinaire. Compte trois ou quatre jours.'));
+    return wrap;
+  }
+  for (const n of notes) {
+    wrap.append(h('div', { class: 'codex-entry' },
+      h('p', { style: { fontStyle: 'italic', margin: '0' } }, n.text)));
+  }
+  return wrap;
+}
+
 function hint(tr) {
   return { stage: `atteindre le stade ${tr.n}`, streak: `une série de ${tr.n} jours`, mutations: `${tr.n} mutations`, campaign_level: `finir le niveau ${tr.n} de Campagne`, defense_wave: `tenir ${tr.n} vagues en Défense`, perfect_days: `${tr.n} journée(s) parfaite(s)`, cycle: `le cycle ${tr.n}` }[tr.kind] || '';
 }

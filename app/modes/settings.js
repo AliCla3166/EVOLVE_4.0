@@ -4,6 +4,7 @@ import { state, save, exportJSON, importJSON, reset } from '../core/state.js';
 import { h, btn, panel, toast, modal, confirmModal } from '../core/ui.js';
 import { testSync, flushSync, requeueAll } from '../core/sync.js';
 import * as notify from '../core/notify.js';
+import * as audio from '../core/audio.js';
 import { speciesVisual } from '../core/genome.js';
 import { renderToCanvas } from '../render/creature.js';
 
@@ -47,6 +48,7 @@ function render() {
     h('div', { class: 'row gap', style: { marginTop: '8px' } }, btn('Tester', { size: 'sm', kind: 'blue', onClick: async () => { try { const r = await testSync(); toast(`OK · base « ${r.database || r.title || 'Chronique'} »`, 'green'); } catch (e) { toast('Échec : ' + e.message, 'red'); } } }), btn('Pousser maintenant', { size: 'sm', onClick: async () => { await flushSync(true); toast(state.sync.lastError ? state.sync.lastError : 'Poussé', state.sync.lastError ? 'red' : 'green'); } }), btn('Tout renvoyer', { size: 'sm', onClick: async () => { const n = requeueAll(); await flushSync(true); toast(state.sync.lastError ? state.sync.lastError : `${n} jour(s) renvoyé(s)`, state.sync.lastError ? 'red' : 'green'); } })),
     h('p', { class: 'small muted', style: { marginTop: '6px' } }, `${s.queue.length} jour(s) en attente${s.lastError ? ' · dernière erreur : ' + s.lastError : ''}`)));
   // Le declencheur du soir
+  root.append(renderSound());
   root.append(renderNotify());
   // Confort de saisie
   const pts = h('button', { class: 'chip' + (state.settings.showPoints ? ' active' : ''), onClick: () => { state.settings.showPoints = !state.settings.showPoints; save(true); render(); } }, state.settings.showPoints ? 'Points affichés' : 'Points masqués');
@@ -71,6 +73,23 @@ function render() {
   });
   root.append(panel('À propos', buildLine, h('p', { class: 'muted small' }, 'Installer : Chrome Android → menu ⋮ → « Ajouter à l\'écran d\'accueil ». Sur iPhone : Partager → « Sur l\'écran d\'accueil ».'), btn('Retour au jeu', { kind: 'green', size: 'block', onClick: () => ctx.navigate('ritual') })));
 }
+// Le son. Tout est synthetise a la volee : pas un octet d'audio dans le depot, et une nappe qui
+// ne boucle jamais parce qu'elle n'est pas un enregistrement.
+function renderSound() {
+  const on = audio.enabled();
+  const tog = h('button', { class: 'chip' + (on ? ' active' : ''), onClick: () => {
+    audio.setEnabled(!on); toast(!on ? 'Son activé' : 'Son coupé', !on ? 'green' : ''); render();
+  } }, on ? 'Son activé' : 'Son coupé');
+  const vol = h('input', { type: 'range', min: '0', max: '100', value: String(Math.round(audio.volume() * 100)), style: { flex: '1', minWidth: '120px' } });
+  vol.addEventListener('input', () => audio.setVolume(Number(vol.value) / 100));
+  vol.addEventListener('change', () => { audio.play('gain', { force: true }); save(true); });
+  return panel('Le son',
+    h('p', { class: 'muted small' }, 'Une nappe par âge, et des sons accordés sur la tonalité du stade — la Cellule est en ré, la Divinité en la. Le jeu change de clé quand l\'espèce évolue.'),
+    h('div', { class: 'settings-row' }, h('span', {}, 'Son'), tog),
+    h('div', { class: 'settings-row' }, h('span', {}, 'Volume'), vol),
+    !audio.supported() ? h('p', { class: 'small muted' }, 'Cet appareil ne fournit pas d\'audio au navigateur.') : null);
+}
+
 // Notifications. Le texte dit franchement ce qu'une PWA sait faire et ce qu'elle ne sait pas :
 // promettre un rappel fiable app fermee serait un mensonge, et un rappel rate est pire que pas de rappel.
 function renderNotify() {

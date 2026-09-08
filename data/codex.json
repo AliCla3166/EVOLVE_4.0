@@ -1,25 +1,475 @@
 {
-  "_comment": "Le Codex : micro-textes de 2 a 5 phrases, solennels, style codex 40k / Spore. trigger : { kind, ... } — kinds : stage (n), streak (days), mutations (count), campaign_level (n), defense_wave (n), perfect_days (n), cycle (n). Ajouter une entree = ajouter un objet.",
-  "entries": [
-    { "id": "cx_001", "stage": 1, "title": "Le refus", "trigger": { "kind": "stage", "n": 1 }, "text": "Elle n'a jamais choisi la guerre. Elle a seulement refusé de disparaître. Dans l'océan noir, ce refus suffisait à faire une vie." },
-    { "id": "cx_002", "stage": 1, "title": "Premier jour", "trigger": { "kind": "perfect_days", "n": 1 }, "text": "Quelque chose, très loin au-dessus de l'eau, a pris soin de soi. Elle ne le saura jamais. Mais ce jour-là, sa membrane a tenu." },
-    { "id": "cx_003", "stage": 1, "title": "Sept marées", "trigger": { "kind": "streak", "n": 7 }, "text": "Sept fois la lumière est revenue, et sept fois elle était là. Les autres cellules n'ont pas de mot pour cela. Elle en aura un, plus tard : la fidélité." },
-    { "id": "cx_004", "stage": 1, "title": "La première mutation", "trigger": { "kind": "mutations", "n": 1 }, "text": "Ce n'était pas une erreur de copie. C'était une réponse. Le monde avait posé une question, et le corps a répondu avant l'esprit." },
-    { "id": "cx_005", "stage": 1, "title": "Les Voraces", "trigger": { "kind": "campaign_level", "n": 1 }, "text": "Ils sont venus de la fosse, sans membrane, sans mémoire, seulement une bouche. Elle a compris qu'exister, c'est être disputé." },
-    { "id": "cx_006", "stage": 1, "title": "La cinquième vague", "trigger": { "kind": "defense_wave", "n": 5 }, "text": "Ils reviennent toujours. Elle a cessé de le craindre pour commencer à le compter. Compter est la première forme de la patience." },
-    { "id": "cx_007", "stage": 1, "title": "Dix niveaux", "trigger": { "kind": "campaign_level", "n": 10 }, "text": "Les Voraces ont reculé. À leur place, des formes grises, sans faim et sans haine — et c'est plus inquiétant encore." },
-    { "id": "cx_008", "stage": 2, "title": "Nous", "trigger": { "kind": "stage", "n": 2 }, "text": "Deux cellules ont refusé de se séparer après la division. Puis quatre. Puis cent. Le mot « je » venait d'inventer le mot « nous »." },
-    { "id": "cx_009", "stage": 2, "title": "Trente marées", "trigger": { "kind": "streak", "n": 30 }, "text": "Un mois de lumières fidèles. La colonie s'est mise à pulser au même rythme que quelque chose qu'elle ne voit pas. On appellera ça, un jour, une habitude." },
-    { "id": "cx_010", "stage": 3, "title": "Le rivage", "trigger": { "kind": "stage", "n": 3 }, "text": "L'eau s'est retirée et elle est restée. Le ciel était trop grand, l'air trop sec, et pourtant : des pattes, des yeux, une faim. Elle marchait." },
-    { "id": "cx_011", "stage": 3, "title": "Dix mutations", "trigger": { "kind": "mutations", "n": 10 }, "text": "Dix fois le corps a été réécrit. Elle ne ressemble plus à ce qu'elle était. Elle ressemble à ce qu'on a fait chaque jour." },
-    { "id": "cx_012", "stage": 4, "title": "Le feu", "trigger": { "kind": "stage", "n": 4 }, "text": "Ce n'est pas le feu qui a fait la meute. C'est le cercle autour du feu — les regards qui se croisent et décident, sans mot, de rester." },
-    { "id": "cx_013", "stage": 4, "title": "Quatre-vingt-dix marées", "trigger": { "kind": "streak", "n": 90 }, "text": "Une saison entière sans faillir. Les anciens racontent qu'au-dessus du ciel, quelqu'un tient un compte. Ils ont raison." },
-    { "id": "cx_014", "stage": 5, "title": "Les murs", "trigger": { "kind": "stage", "n": 5 }, "text": "Ils ont bâti des murs, puis des marchés, puis des dieux — dans cet ordre. La divinité n'est jamais que la dernière muraille." },
-    { "id": "cx_015", "stage": 6, "title": "Un seul monde", "trigger": { "kind": "stage", "n": 6 }, "text": "De l'orbite, il n'y a plus de meutes ni de cités. Il y a une peau bleue, et dessus, une seule espèce qui se regarde pour la première fois." },
-    { "id": "cx_016", "stage": 7, "title": "Le berceau", "trigger": { "kind": "stage", "n": 7 }, "text": "On ne quitte pas le berceau parce qu'on a grandi. On le quitte parce que quelque chose, dans le noir entre les étoiles, a répondu." },
-    { "id": "cx_017", "stage": 8, "title": "L'échelle", "trigger": { "kind": "stage", "n": 8 }, "text": "Des empires à cheval sur des galaxies, et pourtant chaque individu se réveille encore avec la même question que la première cellule : est-ce que je tiendrai jusqu'à la lumière ?" },
-    { "id": "cx_018", "stage": 9, "title": "L'envers", "trigger": { "kind": "stage", "n": 9 }, "text": "Le corps n'était qu'une façon de porter la question. La question, elle, n'a jamais eu besoin de corps." },
-    { "id": "cx_019", "stage": 10, "title": "La graine", "trigger": { "kind": "stage", "n": 10 }, "text": "Elle a créé un océan, noir et chaud, et y a déposé une cellule. Puis elle a regardé. Créer l'univers suivant, ce n'est pas rompre la boucle. C'est la refermer avec tendresse." },
-    { "id": "cx_020", "stage": 1, "title": "Le Panthéon", "trigger": { "kind": "cycle", "n": 2 }, "text": "La nouvelle cellule ne sait rien. Mais quelque chose la veille, qui a déjà été cellule, et meute, et étoile. On appelle cela un mythe. C'est seulement une mémoire qui a survécu au jeu." }
-  ]
+ "_comment": "Le Codex : micro-textes de 2 a 5 phrases, solennels, style codex 40k / Spore. trigger : { kind, ... } — kinds : stage (n), streak (days), mutations (count), campaign_level (n), defense_wave (n), perfect_days (n), cycle (n). Ajouter une entree = ajouter un objet.",
+ "entries": [
+  {
+   "id": "cx_001",
+   "stage": 1,
+   "title": "Le refus",
+   "trigger": {
+    "kind": "stage",
+    "n": 1
+   },
+   "text": "Elle n'a jamais choisi la guerre. Elle a seulement refusé de disparaître. Dans l'océan noir, ce refus suffisait à faire une vie."
+  },
+  {
+   "id": "cx_002",
+   "stage": 1,
+   "title": "Premier jour",
+   "trigger": {
+    "kind": "perfect_days",
+    "n": 1
+   },
+   "text": "Quelque chose, très loin au-dessus de l'eau, a pris soin de soi. Elle ne le saura jamais. Mais ce jour-là, sa membrane a tenu."
+  },
+  {
+   "id": "cx_003",
+   "stage": 1,
+   "title": "Sept marées",
+   "trigger": {
+    "kind": "streak",
+    "n": 7
+   },
+   "text": "Sept fois la lumière est revenue, et sept fois elle était là. Les autres cellules n'ont pas de mot pour cela. Elle en aura un, plus tard : la fidélité."
+  },
+  {
+   "id": "cx_004",
+   "stage": 1,
+   "title": "La première mutation",
+   "trigger": {
+    "kind": "mutations",
+    "n": 1
+   },
+   "text": "Ce n'était pas une erreur de copie. C'était une réponse. Le monde avait posé une question, et le corps a répondu avant l'esprit."
+  },
+  {
+   "id": "cx_005",
+   "stage": 1,
+   "title": "Les Voraces",
+   "trigger": {
+    "kind": "campaign_level",
+    "n": 1
+   },
+   "text": "Ils sont venus de la fosse, sans membrane, sans mémoire, seulement une bouche. Elle a compris qu'exister, c'est être disputé."
+  },
+  {
+   "id": "cx_006",
+   "stage": 1,
+   "title": "La cinquième vague",
+   "trigger": {
+    "kind": "defense_wave",
+    "n": 5
+   },
+   "text": "Ils reviennent toujours. Elle a cessé de le craindre pour commencer à le compter. Compter est la première forme de la patience."
+  },
+  {
+   "id": "cx_007",
+   "stage": 1,
+   "title": "Dix niveaux",
+   "trigger": {
+    "kind": "campaign_level",
+    "n": 10
+   },
+   "text": "Les Voraces ont reculé. À leur place, des formes grises, sans faim et sans haine — et c'est plus inquiétant encore."
+  },
+  {
+   "id": "cx_008",
+   "stage": 2,
+   "title": "Nous",
+   "trigger": {
+    "kind": "stage",
+    "n": 2
+   },
+   "text": "Deux cellules ont refusé de se séparer après la division. Puis quatre. Puis cent. Le mot « je » venait d'inventer le mot « nous »."
+  },
+  {
+   "id": "cx_009",
+   "stage": 2,
+   "title": "Trente marées",
+   "trigger": {
+    "kind": "streak",
+    "n": 30
+   },
+   "text": "Un mois de lumières fidèles. La colonie s'est mise à pulser au même rythme que quelque chose qu'elle ne voit pas. On appellera ça, un jour, une habitude."
+  },
+  {
+   "id": "cx_010",
+   "stage": 3,
+   "title": "Le rivage",
+   "trigger": {
+    "kind": "stage",
+    "n": 3
+   },
+   "text": "L'eau s'est retirée et elle est restée. Le ciel était trop grand, l'air trop sec, et pourtant : des pattes, des yeux, une faim. Elle marchait."
+  },
+  {
+   "id": "cx_011",
+   "stage": 3,
+   "title": "Dix mutations",
+   "trigger": {
+    "kind": "mutations",
+    "n": 10
+   },
+   "text": "Dix fois le corps a été réécrit. Elle ne ressemble plus à ce qu'elle était. Elle ressemble à ce qu'on a fait chaque jour."
+  },
+  {
+   "id": "cx_012",
+   "stage": 4,
+   "title": "Le feu",
+   "trigger": {
+    "kind": "stage",
+    "n": 4
+   },
+   "text": "Ce n'est pas le feu qui a fait la meute. C'est le cercle autour du feu — les regards qui se croisent et décident, sans mot, de rester."
+  },
+  {
+   "id": "cx_013",
+   "stage": 4,
+   "title": "Quatre-vingt-dix marées",
+   "trigger": {
+    "kind": "streak",
+    "n": 90
+   },
+   "text": "Une saison entière sans faillir. Les anciens racontent qu'au-dessus du ciel, quelqu'un tient un compte. Ils ont raison."
+  },
+  {
+   "id": "cx_014",
+   "stage": 5,
+   "title": "Les murs",
+   "trigger": {
+    "kind": "stage",
+    "n": 5
+   },
+   "text": "Ils ont bâti des murs, puis des marchés, puis des dieux — dans cet ordre. La divinité n'est jamais que la dernière muraille."
+  },
+  {
+   "id": "cx_015",
+   "stage": 6,
+   "title": "Un seul monde",
+   "trigger": {
+    "kind": "stage",
+    "n": 6
+   },
+   "text": "De l'orbite, il n'y a plus de meutes ni de cités. Il y a une peau bleue, et dessus, une seule espèce qui se regarde pour la première fois."
+  },
+  {
+   "id": "cx_016",
+   "stage": 7,
+   "title": "Le berceau",
+   "trigger": {
+    "kind": "stage",
+    "n": 7
+   },
+   "text": "On ne quitte pas le berceau parce qu'on a grandi. On le quitte parce que quelque chose, dans le noir entre les étoiles, a répondu."
+  },
+  {
+   "id": "cx_017",
+   "stage": 8,
+   "title": "L'échelle",
+   "trigger": {
+    "kind": "stage",
+    "n": 8
+   },
+   "text": "Des empires à cheval sur des galaxies, et pourtant chaque individu se réveille encore avec la même question que la première cellule : est-ce que je tiendrai jusqu'à la lumière ?"
+  },
+  {
+   "id": "cx_018",
+   "stage": 9,
+   "title": "L'envers",
+   "trigger": {
+    "kind": "stage",
+    "n": 9
+   },
+   "text": "Le corps n'était qu'une façon de porter la question. La question, elle, n'a jamais eu besoin de corps."
+  },
+  {
+   "id": "cx_019",
+   "stage": 10,
+   "title": "La graine",
+   "trigger": {
+    "kind": "stage",
+    "n": 10
+   },
+   "text": "Elle a créé un océan, noir et chaud, et y a déposé une cellule. Puis elle a regardé. Créer l'univers suivant, ce n'est pas rompre la boucle. C'est la refermer avec tendresse."
+  },
+  {
+   "id": "cx_020",
+   "stage": 1,
+   "title": "Le Panthéon",
+   "trigger": {
+    "kind": "cycle",
+    "n": 2
+   },
+   "text": "La nouvelle cellule ne sait rien. Mais quelque chose la veille, qui a déjà été cellule, et meute, et étoile. On appelle cela un mythe. C'est seulement une mémoire qui a survécu au jeu."
+  },
+  {
+   "id": "cx_021",
+   "stage": 1,
+   "title": "La marée",
+   "trigger": {
+    "kind": "streak",
+    "n": 7
+   },
+   "text": "Sept fois de suite, quelque chose est revenu. Elle ne connaît pas le mot habitude. Elle connaît la marée."
+  },
+  {
+   "id": "cx_022",
+   "stage": 2,
+   "title": "Le premier voisin",
+   "trigger": {
+    "kind": "mutations",
+    "n": 3
+   },
+   "text": "Deux cellules se sont touchées et ne se sont pas séparées. Tout ce qui suit vient de cet accident."
+  },
+  {
+   "id": "cx_023",
+   "stage": 2,
+   "title": "Ce qui filtre",
+   "trigger": {
+    "kind": "stage",
+    "n": 2
+   },
+   "text": "L'eau apporte plus qu'elle n'emporte. C'est la seule définition de la chance qu'elle aura jamais."
+  },
+  {
+   "id": "cx_024",
+   "stage": 3,
+   "title": "Le premier pas hors de l'eau",
+   "trigger": {
+    "kind": "stage",
+    "n": 3
+   },
+   "text": "Le poids. Personne ne l'avait prévenue du poids."
+  },
+  {
+   "id": "cx_025",
+   "stage": 3,
+   "title": "La faim comme direction",
+   "trigger": {
+    "kind": "campaign_level",
+    "n": 12
+   },
+   "text": "Avant la peur, avant le désir, il y a eu la faim. C'est elle qui a inventé le mouvement."
+  },
+  {
+   "id": "cx_026",
+   "stage": 3,
+   "title": "Le sommeil",
+   "trigger": {
+    "kind": "streak",
+    "n": 21
+   },
+   "text": "Elle a appris à s'arrêter sans mourir. Aucune invention ne lui a coûté aussi cher."
+  },
+  {
+   "id": "cx_027",
+   "stage": 4,
+   "title": "Le feu",
+   "trigger": {
+    "kind": "stage",
+    "n": 4
+   },
+   "text": "Elle n'a pas inventé le feu. Elle a inventé de le garder."
+  },
+  {
+   "id": "cx_028",
+   "stage": 4,
+   "title": "Le premier outil",
+   "trigger": {
+    "kind": "mutations",
+    "n": 8
+   },
+   "text": "Une pierre, tenue autrement que les autres pierres. C'est tout. C'est énorme."
+  },
+  {
+   "id": "cx_029",
+   "stage": 4,
+   "title": "Ceux qui restent",
+   "trigger": {
+    "kind": "defense_wave",
+    "n": 12
+   },
+   "text": "On a compté ceux qui étaient là au matin. Pour la première fois, quelqu'un a compté."
+  },
+  {
+   "id": "cx_030",
+   "stage": 5,
+   "title": "Le mur",
+   "trigger": {
+    "kind": "stage",
+    "n": 5
+   },
+   "text": "Un mur dit deux choses en même temps : nous sommes ici, et nous avons peur. Les deux sont vraies."
+  },
+  {
+   "id": "cx_031",
+   "stage": 5,
+   "title": "Le nom",
+   "trigger": {
+    "kind": "perfect_days",
+    "n": 30
+   },
+   "text": "Elle a reçu un nom. Depuis, elle a quelque chose à perdre."
+  },
+  {
+   "id": "cx_032",
+   "stage": 5,
+   "title": "Le grenier",
+   "trigger": {
+    "kind": "campaign_level",
+    "n": 60
+   },
+   "text": "Manger demain ce qu'on a trouvé aujourd'hui. Toute la civilisation tient dans cette phrase."
+  },
+  {
+   "id": "cx_033",
+   "stage": 6,
+   "title": "La lumière artificielle",
+   "trigger": {
+    "kind": "stage",
+    "n": 6
+   },
+   "text": "La nuit a cessé d'être une loi. Elle est devenue une décision."
+  },
+  {
+   "id": "cx_034",
+   "stage": 6,
+   "title": "Le ciel occupé",
+   "trigger": {
+    "kind": "defense_wave",
+    "n": 30
+   },
+   "text": "Des choses tournent au-dessus d'elle et lui appartiennent. Elle n'arrive toujours pas à le croire."
+  },
+  {
+   "id": "cx_035",
+   "stage": 6,
+   "title": "L'oubli",
+   "trigger": {
+    "kind": "streak",
+    "n": 60
+   },
+   "text": "Elle ne se souvient plus du rivage. C'est le prix, et il était marqué."
+  },
+  {
+   "id": "cx_036",
+   "stage": 7,
+   "title": "Le vide n'est pas vide",
+   "trigger": {
+    "kind": "stage",
+    "n": 7
+   },
+   "text": "Il y a moins de rien dans le vide que dans une salle d'attente."
+  },
+  {
+   "id": "cx_037",
+   "stage": 7,
+   "title": "La distance",
+   "trigger": {
+    "kind": "campaign_level",
+    "n": 120
+   },
+   "text": "Ce qu'elle voit est déjà vieux. Elle a appris à aimer des choses qui n'existent peut-être plus."
+  },
+  {
+   "id": "cx_038",
+   "stage": 7,
+   "title": "Les autres lignées",
+   "trigger": {
+    "kind": "defense_wave",
+    "n": 45
+   },
+   "text": "Elles ne sont ni bonnes ni mauvaises. Elles ont eu faim ailleurs, voilà tout."
+  },
+  {
+   "id": "cx_039",
+   "stage": 8,
+   "title": "Le corps devenu champ",
+   "trigger": {
+    "kind": "stage",
+    "n": 8
+   },
+   "text": "La matière était une étape. Personne ne l'avait dit à personne."
+  },
+  {
+   "id": "cx_040",
+   "stage": 8,
+   "title": "La lumière rendue",
+   "trigger": {
+    "kind": "mutations",
+    "n": 20
+   },
+   "text": "Au stade 1 elle s'éclairait elle-même, faute de soleil. Elle recommence, pour d'autres raisons."
+  },
+  {
+   "id": "cx_041",
+   "stage": 8,
+   "title": "Ce qu'on ne peut plus perdre",
+   "trigger": {
+    "kind": "streak",
+    "n": 120
+   },
+   "text": "À force de revenir, elle a cessé de compter les retours. C'est peut-être ça, être vivant longtemps."
+  },
+  {
+   "id": "cx_042",
+   "stage": 9,
+   "title": "Sans pieds",
+   "trigger": {
+    "kind": "stage",
+    "n": 9
+   },
+   "text": "Elle ne touche plus rien. Elle a mis neuf âges à en arriver là, et une seconde à s'y habituer."
+  },
+  {
+   "id": "cx_043",
+   "stage": 9,
+   "title": "La dernière peur",
+   "trigger": {
+    "kind": "defense_wave",
+    "n": 60
+   },
+   "text": "Il ne reste plus grand-chose à craindre. C'est plus difficile qu'elle ne l'imaginait."
+  },
+  {
+   "id": "cx_044",
+   "stage": 9,
+   "title": "Le souvenir de l'eau",
+   "trigger": {
+    "kind": "perfect_days",
+    "n": 200
+   },
+   "text": "Très loin en arrière, il y avait de l'eau et une membrane. Elle y pense encore, parfois."
+  },
+  {
+   "id": "cx_045",
+   "stage": 10,
+   "title": "Ce qu'elle fait de la lumière",
+   "trigger": {
+    "kind": "stage",
+    "n": 10
+   },
+   "text": "Elle ne reçoit plus rien. Elle donne, sans avoir décidé de donner."
+  },
+  {
+   "id": "cx_046",
+   "stage": 10,
+   "title": "La cellule suivante",
+   "trigger": {
+    "kind": "cycle",
+    "n": 2
+   },
+   "text": "Quelque part dans un océan noir, une membrane vient de tenir. Elle ne saura jamais qui l'a voulu."
+  },
+  {
+   "id": "cx_047",
+   "stage": 10,
+   "title": "Le soin",
+   "trigger": {
+    "kind": "perfect_days",
+    "n": 365
+   },
+   "text": "Trois cent soixante-cinq fois, quelqu'un a pris soin de lui. Voilà d'où vient tout ça. Il n'y a rien d'autre."
+  }
+ ]
 }

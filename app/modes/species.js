@@ -6,6 +6,7 @@ import { dayKey } from '../core/clock.js';
 import { speciesVisual, speciesMods, mutationById } from '../core/genome.js';
 import { drawCreature, renderToCanvas } from '../render/creature.js';
 import { h, btn, panel, bar, toast, modal, fmt, confirmModal } from '../core/ui.js';
+import * as audio from '../core/audio.js';
 import { checkCodex } from './codex.js';
 
 let ctx, root, raf = null, canvas;
@@ -45,6 +46,7 @@ function rollDraft(axis, seed) {
 function takeMutation(draftIdx, id) {
   const sp = state.species; sp.pendingDrafts.splice(draftIdx, 1);
   sp.mutations.push({ id, date: dayKey() });
+  audio.play('mutation', { force: true });
   const def = mutationById(id);
   save(); toast(`🧬 ${def.name} — la Lignée mute`, 'purple'); checkCodex(); render();
 }

@@ -3,7 +3,7 @@ import { config, allFields } from '../core/config.js';
 import { state } from '../core/state.js';
 import { dayKey, addDays, fmtDay, keyToDate } from '../core/clock.js';
 import { h, btn, panel, bar, fmt, toast } from '../core/ui.js';
-import { renderCodexList } from './codex.js';
+import { renderCodexList, renderJournal } from './codex.js';
 import { flushSync } from '../core/sync.js';
 
 let root, ctx, tab = 'vie', range = 30;
@@ -16,7 +16,7 @@ function numericValue(f, v) { if (v === undefined || v === null || v === '') ret
 function render() {
   root.innerHTML = '';
   root.append(h('div', { class: 'tabs-inline' }, ...[['vie', 'Vie'], ['activites', 'Activités'], ['codex', 'Codex'], ['memoire', 'Mémoire']].map(([id, l]) => h('button', { class: tab === id ? 'active' : '', onClick: () => { tab = id; render(); } }, l))));
-  if (tab === 'vie') renderVie(); else if (tab === 'activites') renderActivites(); else if (tab === 'codex') root.append(panel('📜 Codex', h('p', { class: 'muted small' }, `${state.codex.unlocked.length} / ${config.codex.entries.length} entrées`), renderCodexList())); else renderMemoire();
+  if (tab === 'vie') renderVie(); else if (tab === 'activites') renderActivites(); else if (tab === 'codex') { root.append(panel('📜 Journal de terrain', h('p', { class: 'muted small' }, 'Ce que la Lignée a observé de toi. Seulement ce qui sort de ton ordinaire — jamais un reproche.'), renderJournal())); root.append(panel('📖 Codex', h('p', { class: 'muted small' }, `${state.codex.unlocked.length} / ${config.codex.entries.length} entrées`), renderCodexList())); } else renderMemoire();
 }
 
 function renderVie() {

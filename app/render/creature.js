@@ -39,7 +39,10 @@ export function drawCreature(ctx, visual, opts = {}) {
   const arch = ARCH[archetype] || ARCH.eclaireur;
   const role = opts.role || arch.role;
   // Les genes : la palette, la livree et les irregularites propres a CET individu.
-  const G = genesFor(visual, archetype);
+  let G = genesFor(visual, archetype);
+  // Deux mutations des stades 9-10 empruntent aux lignees leurs proprietes de rendu : la traine
+  // au lieu des jambes, et la translucidite. On copie les genes plutot que de polluer le cache.
+  if (visual.traine || visual.translucide) G = { ...G, traine: G.traine || !!visual.traine, translucide: visual.translucide || G.translucide };
   // Dephasage : deux cretaures cote a cote ne doivent pas respirer en cadence, sinon la scene
   // entiere pulse comme un seul objet. C'est le defaut le plus visible d'une foule generee.
   const t = t0 + G.phase * 0.13;

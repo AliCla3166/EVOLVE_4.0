@@ -10,6 +10,8 @@ import { spend, canAfford, progressContract } from '../core/progress.js';
 import { h, fmt, btn, panel, bar, toast, modal } from '../core/ui.js';
 import { drawCreature, shade } from '../render/creature.js';
 import { drawBuilding as drawBuildingArt } from '../render/buildings.js';
+import * as audio from '../core/audio.js';
+import * as vie from '../render/vie.js';
 
 const INK = '#171B23';
 const MS_H = 3600e3;               // millisecondes dans une heure
@@ -111,6 +113,7 @@ export function tickColony() {
       delete b.upgradingUntil;
     }
     finished++;
+    audio.play('done');
     toast(`🏗️ ${nameOf(q.id)} — niveau ${q.lvl}`, 'green');
   }
   if (finished) { save(); notifyStructure(); }
@@ -134,6 +137,7 @@ function startBuild(id) {
   }
   progressContract('build', 1); // la progression du contrat se fait au LANCEMENT
   save();
+  audio.play('build');
   toast(`⚒️ Chantier lancé : ${nameOf(id)}`, 'gold');
   notifyStructure();
   return null;
@@ -172,6 +176,9 @@ function rollContracts() {
 let root = null, ctxRef = null;
 let raf = 0, timer = 0, canvas = null, cctx = null, ro = null;
 let walkers = [], startTime = 0;
+let faune = vie.newFaune();      // ce qui traverse la scene sans t'appartenir
+let lum = null, hum = null;      // lumiere du jour reel, humeur de la semaine
+let lastEnv = 0;                 // on ne recalcule l'heure et l'humeur qu'une fois par seconde
 let onStructure = null;
 function notifyStructure() { if (onStructure) onStructure(); }
 
@@ -413,32 +420,39 @@ function isAquatic() { const bp = stage().bodyplan; return bp === 'cell' || bp =
 
 function buildWalkers() {
   const g = canvas ? mapGeom() : { cx: 180, cy: 138, rx: 122, ry: 55 };
-  const n = Math.max(3, Math.min(6, 3 + Math.floor(builtCount() / 4)));
+  // La densite de passage suit la production : une colonie qui produit beaucoup a des routes
+  // chargees. C'est l'economie rendue lisible sans un seul chiffre.
+  const n = Math.max(3, Math.min(9, 3 + Math.floor(builtCount() / 2.2)));
   const rng = makeRng('walkers' + state.species.seed);
-  const next = () => ({ x: g.cx + rng.range(-1.25, 1.25) * g.rx, y: g.cy + rng.range(-0.8, 1.1) * g.ry });
+  const sites = siteList(g);
   const out = [];
   for (let i = 0; i < n; i++) {
-    const p = next();
-    out.push({ i, x: p.x, y: p.y, tx: next().x, ty: next().y, speed: rng.range(6, 14), facing: 1, wait: rng.range(0, 2) });
+    const s = sites.length ? sites[i % sites.length] : null;
+    out.push({
+      i, x: g.cx + rng.range(-.6, .6) * g.rx, y: g.cy + rng.range(-.4, .6) * g.ry,
+      phase: 'aller', site: s, charge: null,
+      tx: s ? s.x : g.cx + rng.range(-1, 1) * g.rx, ty: s ? s.y : g.cy + rng.range(-.6, .8) * g.ry,
+      speed: rng.range(9, 17), facing: 1, wait: rng.range(0, 2.5)
+    });
   }
   walkers = out;
 }
+// Les batiments qui produisent : ce sont eux les destinations des porteurs.
+function siteList(g) {
+  const out = [];
+  for (const def of C().buildings) {
+    if (!def.resource || !levelOf(def.id)) continue;
+    const a = -Math.PI / 2 + (def.slot / RING_SLOTS) * Math.PI * 2;
+    out.push({ x: g.cx + Math.cos(a) * g.rx * 1.18, y: g.cy + Math.sin(a) * g.ry * 1.32, res: def.resource });
+  }
+  return out;
+}
+
 function stepWalkers(dt) {
   const g = mapGeom();
-  const rng = Math.random;
-  for (const wk of walkers) {
-    if (wk.wait > 0) { wk.wait -= dt; continue; }
-    const dx = wk.tx - wk.x, dy = wk.ty - wk.y, d = Math.hypot(dx, dy);
-    if (d < 3) {
-      wk.tx = g.cx + (rng() * 2.5 - 1.25) * g.rx;
-      wk.ty = g.cy + (rng() * 1.9 - 0.8) * g.ry;
-      wk.wait = 0.5 + rng() * 2.5;
-      continue;
-    }
-    wk.facing = dx >= 0 ? 1 : -1;
-    wk.x += (dx / d) * wk.speed * dt;
-    wk.y += (dy / d) * wk.speed * dt;
-  }
+  // La nuit, on se presse moins. Une journee parfaite accelere tout le monde.
+  const rythme = (0.55 + 0.45 * (lum ? lum.k : 1)) * (1 + (hum ? hum.v : 0) * 0.22);
+  vie.stepPorteurs(walkers, g, dt, siteList(g), rythme);
 }
 
 function loop() {
@@ -447,14 +461,19 @@ function loop() {
   const now = performance.now();
   const t = (now - startTime) / 1000;
   const dt = Math.min(0.05, (now - (loop._last || now)) / 1000); loop._last = now;
+  if (now - lastEnv > 1000) { lastEnv = now; lum = vie.daylight(); hum = vie.humeur(state, config); }
+  if (!lum) { lum = vie.daylight(); hum = vie.humeur(state, config); }
   stepWalkers(dt);
+  vie.stepFaune(faune, mapGeom(), dt, isAquatic(), lum);
   drawMap(t);
 }
 
 function drawMap(t) {
   const g = mapGeom(); const p = stage().palette; const ctx = cctx;
+  const L = lum || vie.daylight(), H = hum || { v: 0 };
   ctx.clearRect(0, 0, g.w, g.h);
   if (isAquatic()) drawWater(ctx, g, p, t); else drawLand(ctx, g, p, t);
+  vie.drawCiel(ctx, g, p, t, L);
   drawEnvelope(ctx, g, p);
 
   // Tout ce qui est pose au sol, trie par profondeur (y croissant = devant)
@@ -473,10 +492,24 @@ function drawMap(t) {
   const visual = speciesVisual();
   for (const wk of walkers) {
     if (!wk.vis) wk.vis = { ...visual, seed: ((visual.seed | 0) + wk.i * 7919) >>> 0 };
-    items.push({ y: wk.y, draw: () => drawCreature(ctx, wk.vis, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' }) });
+    items.push({ y: wk.y, draw: () => {
+      drawCreature(ctx, wk.vis, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' });
+      vie.drawCharge(ctx, wk, 34, RES_COL());
+    } });
   }
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
+
+  // Ce qui passe et ne t'appartient pas, puis la lumiere de l'heure, puis la fete d'un jour parfait.
+  vie.drawFaune(ctx, faune, g, t, p, L);
+  vie.drawVoile(ctx, g, L, H);
+  vie.drawFete(ctx, g, t, H, p);
+}
+// Couleur d'une ressource, pour la cargaison des porteurs.
+let _resCol = null;
+function RES_COL() {
+  if (!_resCol) { _resCol = {}; for (const [k, v] of Object.entries(C().resources)) _resCol[k] = v.color; }
+  return _resCol;
 }
 
 function drawWater(ctx, g, p, t) {
@@ -499,10 +532,16 @@ function drawWater(ctx, g, p, t) {
 function drawLand(ctx, g, p, t) {
   const hz = g.h * 0.32; // ligne d'horizon
   ctx.fillStyle = p.bg; ctx.fillRect(0, 0, g.w, hz + 2);
-  // collines en aplats derriere l'horizon
+  // Parallaxe : deux plans de collines qui derivent a des vitesses differentes. La scene n'est
+  // plus une image fixe, elle a une profondeur — et donc une camera.
+  const d1 = (t * 1.6) % (g.w * 2), d2 = (t * 3.4) % (g.w * 2);
+  ctx.fillStyle = shade(p.ground, -0.34);
+  for (const [hx, hr] of [[g.w * 0.10, g.w * 0.30], [g.w * 0.62, g.w * 0.34], [g.w * 1.15, g.w * 0.28]]) {
+    for (const o of [0, -g.w * 2]) { ctx.beginPath(); ctx.ellipse(hx - d1 + o, hz + 3, hr, g.h * 0.10, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); }
+  }
   ctx.fillStyle = shade(p.ground, -0.22);
-  for (const [hx, hr] of [[g.w * 0.18, g.w * 0.22], [g.w * 0.55, g.w * 0.26], [g.w * 0.9, g.w * 0.2]]) {
-    ctx.beginPath(); ctx.ellipse(hx, hz, hr, g.h * 0.12, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  for (const [hx, hr] of [[g.w * 0.18, g.w * 0.22], [g.w * 0.55, g.w * 0.26], [g.w * 0.9, g.w * 0.2], [g.w * 1.4, g.w * 0.24]]) {
+    for (const o of [0, -g.w * 2]) { ctx.beginPath(); ctx.ellipse(hx - d2 + o, hz, hr, g.h * 0.12, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); }
   }
   ctx.fillStyle = p.ground;
   ctx.beginPath(); ctx.moveTo(0, g.h); ctx.lineTo(0, hz);

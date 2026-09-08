@@ -8,6 +8,7 @@ import { h, btn, panel, bar, chip, toast, modal } from '../core/ui.js';
 import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { drawCreature, renderToCanvas } from '../render/creature.js';
 import { wildVisual, FACTIONS } from '../render/genes.js';
+import * as audio from '../core/audio.js';
 import { makeRng } from '../core/rng.js';
 import { dayKey } from '../core/clock.js';
 import {
@@ -863,6 +864,7 @@ function applyOnHit(u, tgt) {
 function hurt(u, d, from, crit, silent) {
   if (u.dead || d <= 0) return;
   u.hp -= d; u.flash = 1;
+  if (!silent) audio.play('hit');
   if (!silent) B.floaters.push({ x: u.x, row: u._row || 0, y: -unitPx(u) * 1.4, text: String(Math.round(d)), color: crit ? '#FFC24B' : CHALK, t: 0, big: !!crit });
   if (u.hp <= 0) killUnit(u, from);
 }
@@ -874,6 +876,7 @@ function healUnit(u, amount, silent) {
 }
 function killUnit(u, from) {
   u.dead = true; u.deadT = 0; u.hp = 0;
+  audio.play('death');
   B.deaths.push({ x: u.x, row: u._row || 0, t: 0, size: unitPx(u), color: u.side === 'p' ? B.st.palette.tint : B.fac.tint });
   for (let i = 0; i < 8; i++) {
     B.particles.push({ x: u.x, row: u._row || 0, y: -unitPx(u) * 0.8, vx: (Math.random() - 0.5) * 90, vy: -40 - Math.random() * 90, life: 0.5 + Math.random() * 0.3, r: 3 + Math.random() * 4, color: u.side === 'p' ? B.st.palette.tint : B.fac.tint });
@@ -931,7 +934,7 @@ function updateTurrets(dt) {
       t.cd = d.interval;
       const tgt = foes.reduce((a, b) => (Math.abs(b.x - t.x) < Math.abs(a.x - t.x) ? b : a));
       hurt(tgt, d.dmg * t.level * boost, null, false);
-      t.fireT = 1; t.aim = Math.sign(tgt.x - t.x) || 1;
+      t.fireT = 1; t.aim = Math.sign(tgt.x - t.x) || 1; audio.play('turret');
       B.projectiles.push({ x: t.x, row: t.row, side: 'p', dmg: 0, from: null, target: tgt, dir: 1, delay: 0, yoff: -14, ghost: true });
     }
   }
@@ -1033,6 +1036,7 @@ function checkEnd() {
 function endBattle(result) {
   if (!B || B.over) return;
   B.over = true; B.result = result;
+  audio.play(result === 'victory' ? 'victory' : 'defeat', { force: true });
   const lines = [];
   const mode = B.mode;
 
