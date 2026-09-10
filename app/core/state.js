@@ -1,6 +1,7 @@
 // Sauvegarde locale versionnee avec chaine de migrations — des la premiere ligne.
+import { structureLevels } from './settlement.js';
 import { bus } from './events.js';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const KEY = 'evolve4.save';
 
 export function defaultState() {
@@ -27,7 +28,7 @@ export function defaultState() {
     days: {},                 // dayKey -> { entries, elan, pillars, perfect, submittedAt, late, synced, axisPoints }
     ritualDrafts: {},         // dayKey -> entries en cours de saisie (non recoltees)
     streak: { current: 0, best: 0, shields: 1, lastDay: null },
-    colony: { buildings: {}, queue: [], lastTick: Date.now(), coreLevel: 1, contracts: [], contractsDay: null, contractProgress: {} },
+    colony: { settlement: null, buildings: {}, queue: [], lastTick: Date.now(), coreLevel: 1, contracts: [], contractsDay: null, contractProgress: {} },
     battle: { campaignLevel: 1, defenseWave: 1, defenseDay: null, defenseWavesToday: 0, stagePointsDay: null, stagePointsToday: 0, raidsDay: null, raidsToday: 0, turrets: [], records: { defenseWave: 0, raidPeril: 0 }, kills: 0, cardsPlayed: 0 },
     cards: { collection: {}, deck: [], pity: 0, xp: {} },
     codex: { unlocked: [], quotes: {} },   // quotes : id d'entree -> { date, text } fige au deblocage
@@ -38,7 +39,7 @@ export function defaultState() {
 }
 
 const MIGRATIONS = {
-  // 1 -> 2 : exemple futur. Chaque migration recoit l'etat et le transforme en place.
+  1(s) { if(s.colony && s.species) s.colony.settlement = { epoch: `${s.species.cycle}:${s.species.stage}`, baseLevels: s.species.stage === 1 ? 0 : structureLevels(s), basePoints: 0, growth: 0 }; }
 };
 
 export function migrate(s) {

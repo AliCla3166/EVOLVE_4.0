@@ -1,4 +1,5 @@
 // L'Espece — la Lignee : creature procedurale, genome a 6 axes, drafts de mutation, stades, Nouveau Cycle.
+import { resetSettlement } from '../core/settlement.js';
 import { config, stageOf } from '../core/config.js';
 import { state, save } from '../core/state.js';
 import { makeRng } from '../core/rng.js';
@@ -58,6 +59,7 @@ async function metamorph() {
   const sure = await confirmModal(`Métamorphose → ${next.icon} ${next.name}`, `Dépenser ${fmt(next.elan_cost)} ⚡ et ${next.stage_points_required} Points de Stade. La Lignée change de corps, la Colonie change de visage, un chapitre du Codex s'ouvre.`, 'Évoluer', 'purple');
   if (!sure) return;
   state.wallet.elan -= next.elan_cost; state.species.stagePoints -= next.stage_points_required; state.species.stage = next.n;
+  resetSettlement(state);
   save(); ctx.bus.emit('stage:changed'); ctx.refreshWallet();
   cinematic(next); checkCodex();
 }
@@ -82,6 +84,7 @@ async function newCycle() {
   sp.cycle++; sp.stage = 1; sp.stagePoints = 0; sp.mutations = []; sp.pendingDrafts = []; sp.seed = Math.floor(Math.random() * 1e9);
   for (const ax of A.order) { sp.axes[ax] = 0; sp.axisTaken[ax] = 0; }
   state.colony.buildings = {}; state.colony.queue = []; state.colony.coreLevel = 1;
+  resetSettlement(state);
   state.battle.campaignLevel = 1; state.battle.defenseWave = 1; state.battle.turrets = [];
   state.wallet.elan = 0; state.wallet.biomasse = 60; state.wallet.materiaux = 40;
   save(); ctx.bus.emit('stage:changed'); ctx.refreshWallet(); checkCodex(); render();

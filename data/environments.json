@@ -1,0 +1,148 @@
+{
+  "_comment": "Décors et croissance visuelle uniquement. Aucun coût, gain ou effet sur les statistiques. La disposition reste en coordonnées monde et le couloir utilise les valeurs de battle.view.",
+  "world": {
+    "width": 1440,
+    "height": 900,
+    "previewHeight": 300,
+    "maxZoom": 4.5,
+    "initialHomes": 3,
+    "maxHomes": 144,
+    "maxCitizens": 44,
+    "constructionTargetBase": 16,
+    "constructionTargetPerStage": 2
+  },
+  "ui": {
+    "explore": "Explorer",
+    "close": "Quitter la vue plein écran",
+    "recenter": "Vue d’ensemble",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "help": "Glisse pour explorer · pince ou utilise + / − pour zoomer · touche un bâtiment",
+    "previewHelp": "Un monde à explorer",
+    "homes": "habitations",
+    "settlement": "Peuplement de cet âge",
+    "empty": "Emplacement à bâtir",
+    "district": "Quartier résidentiel",
+    "districtInfo": "Ces habitations apparaissent avec le développement de cet âge. Elles ne coûtent rien et ne modifient pas la production.",
+    "resetInfo": "À chaque âge, un nouveau peuplement. Tes bâtiments et tes ressources sont conservés.",
+    "stages": [
+      "Premier refuge",
+      "Hameaux",
+      "Quartiers",
+      "Colonie foisonnante"
+    ],
+    "settlementHint": "Les chantiers achevés et les Points de Stade font grandir le peuplement."
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "name": "Le Jardin des origines",
+      "lore": "Sous les coques de silice, les premières poches de vie se touchent.",
+      "battle": "assets/backgrounds/battle-01.webp",
+      "colony": "assets/backgrounds/colony-01.webp",
+      "road": "#6C9298",
+      "housing": "cyste",
+      "accent": "#3FB8C9",
+      "particle": "bubble"
+    },
+    {
+      "stage": 2,
+      "name": "La Mer des symbioses",
+      "lore": "Ce qui vivait seul apprend à partager la lumière.",
+      "battle": "assets/backgrounds/battle-02.webp",
+      "colony": "assets/backgrounds/colony-02.webp",
+      "road": "#739886",
+      "housing": "polyp",
+      "accent": "#5CC98A",
+      "particle": "bubble"
+    },
+    {
+      "stage": 3,
+      "name": "Les Racines du monde",
+      "lore": "Sous les racines, des terriers relient la clairière.",
+      "battle": "assets/backgrounds/battle-03.webp",
+      "colony": "assets/backgrounds/colony-03.webp",
+      "road": "#788566",
+      "housing": "burrow",
+      "accent": "#8FC54A",
+      "particle": "dust"
+    },
+    {
+      "stage": 4,
+      "name": "La Vallée des braises",
+      "lore": "Des foyers apparaissent entre la pierre et le vent.",
+      "battle": "assets/backgrounds/battle-04.webp",
+      "colony": "assets/backgrounds/colony-04.webp",
+      "road": "#A7896C",
+      "housing": "hut",
+      "accent": "#E0A045",
+      "particle": "dust"
+    },
+    {
+      "stage": 5,
+      "name": "Les Terrasses de calcaire",
+      "lore": "La mémoire prend la forme de rues et de maisons.",
+      "battle": "assets/backgrounds/battle-05.webp",
+      "colony": "assets/backgrounds/colony-05.webp",
+      "road": "#ADAC9B",
+      "housing": "adobe",
+      "accent": "#D9B36A",
+      "particle": "dust"
+    },
+    {
+      "stage": 6,
+      "name": "Le Bassin des veilleurs",
+      "lore": "Chaque fenêtre appartient désormais au même monde.",
+      "battle": "assets/backgrounds/battle-06.webp",
+      "colony": "assets/backgrounds/colony-06.webp",
+      "road": "#7B909F",
+      "housing": "habitat",
+      "accent": "#4EA8E8",
+      "particle": "dust"
+    },
+    {
+      "stage": 7,
+      "name": "Le Berceau orbital",
+      "lore": "Le vide sépare les abris. Les passages les réunissent.",
+      "battle": "assets/backgrounds/battle-07.webp",
+      "colony": "assets/backgrounds/colony-07.webp",
+      "road": "#778694",
+      "housing": "pod",
+      "accent": "#5B8FC7",
+      "particle": "star"
+    },
+    {
+      "stage": 8,
+      "name": "Les Rives de la galaxie",
+      "lore": "Des quartiers entiers apprennent à regarder d’autres soleils.",
+      "battle": "assets/backgrounds/battle-08.webp",
+      "colony": "assets/backgrounds/colony-08.webp",
+      "road": "#92819F",
+      "housing": "spire",
+      "accent": "#A76BD9",
+      "particle": "star"
+    },
+    {
+      "stage": 9,
+      "name": "Le Domaine des voiles",
+      "lore": "Les habitations ne retiennent plus les corps, mais leur présence.",
+      "battle": "assets/backgrounds/battle-09.webp",
+      "colony": "assets/backgrounds/colony-09.webp",
+      "road": "#967D8F",
+      "housing": "veil",
+      "accent": "#D8407A",
+      "particle": "star"
+    },
+    {
+      "stage": 10,
+      "name": "Le Jardin du prochain monde",
+      "lore": "Tout ce qui habite ici prépare un autre commencement.",
+      "battle": "assets/backgrounds/battle-10.webp",
+      "colony": "assets/backgrounds/colony-10.webp",
+      "road": "#ABA48E",
+      "housing": "shrine",
+      "accent": "#F0E4B8",
+      "particle": "star"
+    }
+  ]
+}

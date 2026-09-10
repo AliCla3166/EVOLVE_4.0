@@ -1,5 +1,5 @@
 // Charge data/*.json. Le moteur ne connait aucun contenu : tout vient d'ici.
-const FILES = ['habits', 'stages', 'mutations', 'colony', 'battle', 'cards', 'codex', 'notify'];
+const FILES = ['habits', 'stages', 'mutations', 'colony', 'battle', 'cards', 'codex', 'notify', 'environments'];
 export const config = {};
 export async function loadConfig(overrides = {}) {
   await Promise.all(FILES.map(async f => {

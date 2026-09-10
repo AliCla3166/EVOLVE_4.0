@@ -149,6 +149,24 @@ textarea.mono { font-family: ui-monospace, monospace; font-size: 12px; font-weig
 /* ---- Colonie ---- */
 .colony-map { position: relative; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 5px 0 var(--ink); margin-bottom: 12px; background: var(--bg); }
 .colony-map canvas { width: 100%; display: block; }
+.colony-world { min-height: 300px; isolation: isolate; }
+.colony-world canvas { cursor: zoom-in; }
+.world-status { position: absolute; left: 14px; top: 12px; display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; background: #111923d9; pointer-events: none; max-width: calc(100% - 124px); }
+.world-status strong { font-size: 13px; color: var(--chalk); }
+.world-status span { font-size: 11px; color: var(--chalk-d); }
+.world-explore { position: absolute; right: 12px; top: 14px; }
+.world-controls { position: absolute; right: 16px; bottom: calc(22px + env(safe-area-inset-bottom,0px)); display: flex; gap: 8px; }
+.world-controls[hidden], .world-explore[hidden], .world-info[hidden] { display: none; }
+.world-controls button { min-width: 44px; min-height: 44px; background: var(--slate); }
+.world-help { position: absolute; left: 14px; bottom: 10px; font-size: 10px; color: var(--chalk-d); background: #111923cf; padding: 5px 8px; border-radius: 8px; pointer-events: none; }
+.world-info { position: absolute; left: 16px; bottom: 90px; width: min(360px,calc(100% - 32px)); background: var(--slate); border: 2px solid var(--ink); border-radius: 12px; padding: 12px; font-size: 13px; }
+.colony-map.world-fullscreen { position: fixed; inset: 0; margin: 0; border: 0; border-radius: 0; z-index: 80; height: 100dvh; width: 100vw; box-shadow: none; }
+.world-fullscreen canvas { cursor: grab; touch-action: none; }
+.world-fullscreen canvas:active { cursor: grabbing; }
+.world-fullscreen .world-status { top: calc(16px + env(safe-area-inset-top,0px)); max-width: calc(100% - 32px); }
+.world-fullscreen .world-help { bottom: calc(75px + env(safe-area-inset-bottom,0px)); max-width: calc(100% - 28px); }
+.battle-hud { flex-wrap: wrap; }
+.retreat-btn { white-space: nowrap; }
 .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .slot { background: var(--slate-l); border: 3px solid var(--ink); border-radius: 12px; padding: 8px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-height: 84px; position: relative; }
 .slot:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }

@@ -251,10 +251,22 @@
     "_comment": "Couche fixe (achetee avec Materiaux). 4 slots max. Degats boostes par spec_e de la Colonie. \"shape\" = silhouette dessinee dans battle.js (baliste : bras qui recule puis claque ; machoire : pieux au sol qui se referment ; autel : orbe qui pulse et emet une onde). \"layout\" repartit les emplacements EN ARC autour de la base au lieu de les aligner : x_pct = fraction du couloir depuis la base, row = rang lateral (au-dela de lane_half_width, donc hors de la voie de passage).",
     "slots": 4,
     "layout": [
-      { "x_pct": 0.10, "row": -2.4 },
-      { "x_pct": 0.10, "row": 2.4 },
-      { "x_pct": 0.22, "row": -3.3 },
-      { "x_pct": 0.22, "row": 3.3 }
+      {
+        "x_pct": 0.1,
+        "row": -2.4
+      },
+      {
+        "x_pct": 0.1,
+        "row": 2.4
+      },
+      {
+        "x_pct": 0.22,
+        "row": -3.3
+      },
+      {
+        "x_pct": 0.22,
+        "row": 3.3
+      }
     ],
     "types": {
       "tour": {
@@ -472,8 +484,8 @@
     "near_scale": 1.16,
     "unit_pct": 0.085,
     "base_scale": 1.15,
-    "lane_half_width": 1.35,
-    "row_spacing": 0.5,
+    "lane_half_width": 1.8,
+    "row_spacing": 0.7,
     "row_depth": 0.035,
     "rows": 5,
     "row_x_window": 40,
@@ -516,5 +528,29 @@
     ],
     "ration_icon": "🍖",
     "unit_icon": "🧬"
+  },
+  "tactics": {
+    "_comment": "Mêmes collisions, recul tactique et formation pour les deux camps. Distances en unités du couloir. Aucune invulnérabilité pendant la retraite.",
+    "radius": 48,
+    "separation": 5,
+    "rowStep": 100,
+    "halfWidth": 200,
+    "spawnWindow": 170,
+    "iterations": 12,
+    "backlineGap": 160,
+    "positionTolerance": 3,
+    "kiteDistance": 0.42,
+    "approachDistance": 220,
+    "pressureWindow": 220,
+    "pushSpeed": 16,
+    "rallyOffset": 0,
+    "retreatSpeed": 3.5,
+    "retreatCooldown": 30,
+    "retreatDuration": 10,
+    "aiMinUnits": 2,
+    "aiOutnumbered": 1.7,
+    "aiHealth": 0.6,
+    "aiHomeDistance": 240,
+    "retreatMinSpeed": 150
   }
 }

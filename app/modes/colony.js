@@ -8,16 +8,13 @@ import { makeRng } from '../core/rng.js';
 import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { spend, canAfford, progressContract } from '../core/progress.js';
 import { h, fmt, btn, panel, bar, toast, modal } from '../core/ui.js';
-import { drawCreature, shade } from '../render/creature.js';
 import { drawBuilding as drawBuildingArt } from '../render/buildings.js';
 import * as audio from '../core/audio.js';
-import * as vie from '../render/vie.js';
+import { createColonyWorld } from '../render/colony-world.js';
+import { ensureSettlement, updateSettlement } from '../core/settlement.js';
 
-const INK = '#171B23';
 const MS_H = 3600e3;               // millisecondes dans une heure
 const OFFLINE_REPORT_MIN_MS = 5 * 60e3; // au-dela de 5 min d'absence, on montre un rapport
-const MAP_HEIGHT = 230;            // hauteur de la carte de colonie, en px CSS
-const RING_SLOTS = 12;             // 12 positions fixes autour du Coeur
 const CORE_COST_REF_MULT = 3;      // le Coeur coute 3x le premier producteur (batiment de reference)
 
 // ---------------------------------------------------------------- helpers data
@@ -75,6 +72,7 @@ export function colonyRates() {
 // ---------------------------------------------------------------- economie (tick)
 export function tickColony() {
   const c = state.colony;
+  ensureSettlement(state);
   const now = Date.now();
   if (!c.lastTick) c.lastTick = now;
   let elapsed = now - c.lastTick;
@@ -116,6 +114,7 @@ export function tickColony() {
     audio.play('done');
     toast(`🏗️ ${nameOf(q.id)} — niveau ${q.lvl}`, 'green');
   }
+  updateSettlement(state, config.environments.world, config.stages.stages);
   if (finished) { save(); notifyStructure(); }
   return { gains, finished };
 }
@@ -174,20 +173,14 @@ function rollContracts() {
 
 // ---------------------------------------------------------------- ecran
 let root = null, ctxRef = null;
-let raf = 0, timer = 0, canvas = null, cctx = null, ro = null;
-let walkers = [], startTime = 0;
-let faune = vie.newFaune();      // ce qui traverse la scene sans t'appartenir
-let lum = null, hum = null;      // lumiere du jour reel, humeur de la semaine
-let lastEnv = 0;                 // on ne recalcule l'heure et l'humeur qu'une fois par seconde
+let timer = 0, world = null;
 let onStructure = null;
 function notifyStructure() { if (onStructure) onStructure(); }
 
 export function unmount() {
-  if (raf) cancelAnimationFrame(raf); raf = 0;
+  world?.destroy(); world = null;
   if (timer) clearInterval(timer); timer = 0;
-  if (ro) { ro.disconnect(); ro = null; }
-  window.removeEventListener('resize', sizeCanvas);
-  onStructure = null; root = null; canvas = null; cctx = null; walkers = [];
+  onStructure = null; root = null;
 }
 
 export function mount(el, ctx) {
@@ -196,8 +189,6 @@ export function mount(el, ctx) {
   rollContracts();
 
   const map = h('div', { class: 'colony-map' });
-  canvas = h('canvas', { style: { height: MAP_HEIGHT + 'px' } });
-  map.append(canvas);
   const resPanel = panel(null, h('div', { class: 'res-grid', id: 'col-res' }));
   const queuePanel = panel('⚒️ Chantiers', h('div', { class: 'col gap', id: 'col-queue' }));
   const slotsPanel = panel('🏗️ Bâtiments', h('div', { id: 'col-core' }), h('div', { class: 'slot-grid', id: 'col-slots' }));
@@ -205,15 +196,8 @@ export function mount(el, ctx) {
   el.append(map, resPanel, queuePanel, slotsPanel, contractsPanel);
 
   renderRes(); renderQueue(); renderSlots(); renderContracts();
-  onStructure = () => { renderSlots(); renderQueue(); renderRes(); renderContracts(); buildWalkers(); };
-
-  sizeCanvas();
-  window.addEventListener('resize', sizeCanvas);
-  if (window.ResizeObserver) { ro = new ResizeObserver(sizeCanvas); ro.observe(map); }
-  buildWalkers();
-  startTime = performance.now();
-  cctx = canvas.getContext('2d');
-  loop();
+  world = createColonyWorld(map, { getState: () => state, getVisual: speciesVisual, onBuilding: openDetail });
+  onStructure = () => { renderSlots(); renderQueue(); renderRes(); renderContracts(); world?.refresh(); };
 
   // Rafraichissement leger : on met a jour des textes, jamais tout l'ecran.
   timer = setInterval(() => { renderRes(); tickQueueLabels(); }, 1000);
@@ -413,208 +397,4 @@ function renderContracts() {
   if (!state.colony.contracts.length) box.append(h('div', { class: 'muted' }, 'Aucun contrat aujourd\'hui.'));
 }
 
-// ---------------------------------------------------------------- carte (canvas)
-function sizeCanvas() {
-  if (!canvas) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = canvas.clientWidth || 360;
-  canvas.width = Math.round(w * dpr); canvas.height = Math.round(MAP_HEIGHT * dpr);
-  cctx = canvas.getContext('2d');
-  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-function mapGeom() {
-  const w = canvas.clientWidth || 360, hh = MAP_HEIGHT;
-  return { w, h: hh, cx: w / 2, cy: hh * 0.62, rx: w * 0.30, ry: hh * 0.20 };
-}
-function isAquatic() { const bp = stage().bodyplan; return bp === 'cell' || bp === 'cluster'; }
-
-function buildWalkers() {
-  const g = canvas ? mapGeom() : { cx: 180, cy: 138, rx: 122, ry: 55 };
-  // La densite de passage suit la production : une colonie qui produit beaucoup a des routes
-  // chargees. C'est l'economie rendue lisible sans un seul chiffre.
-  const n = Math.max(3, Math.min(9, 3 + Math.floor(builtCount() / 2.2)));
-  const rng = makeRng('walkers' + state.species.seed);
-  const sites = siteList(g);
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const s = sites.length ? sites[i % sites.length] : null;
-    out.push({
-      i, x: g.cx + rng.range(-.6, .6) * g.rx, y: g.cy + rng.range(-.4, .6) * g.ry,
-      phase: 'aller', site: s, charge: null,
-      tx: s ? s.x : g.cx + rng.range(-1, 1) * g.rx, ty: s ? s.y : g.cy + rng.range(-.6, .8) * g.ry,
-      speed: rng.range(9, 17), facing: 1, wait: rng.range(0, 2.5)
-    });
-  }
-  walkers = out;
-}
-// Les batiments qui produisent : ce sont eux les destinations des porteurs.
-function siteList(g) {
-  const out = [];
-  for (const def of C().buildings) {
-    if (!def.resource || !levelOf(def.id)) continue;
-    const a = -Math.PI / 2 + (def.slot / RING_SLOTS) * Math.PI * 2;
-    out.push({ x: g.cx + Math.cos(a) * g.rx * 1.18, y: g.cy + Math.sin(a) * g.ry * 1.32, res: def.resource });
-  }
-  return out;
-}
-
-function stepWalkers(dt) {
-  const g = mapGeom();
-  // La nuit, on se presse moins. Une journee parfaite accelere tout le monde.
-  const rythme = (0.55 + 0.45 * (lum ? lum.k : 1)) * (1 + (hum ? hum.v : 0) * 0.22);
-  vie.stepPorteurs(walkers, g, dt, siteList(g), rythme);
-}
-
-function loop() {
-  raf = requestAnimationFrame(loop);
-  if (!cctx) return;
-  const now = performance.now();
-  const t = (now - startTime) / 1000;
-  const dt = Math.min(0.05, (now - (loop._last || now)) / 1000); loop._last = now;
-  if (now - lastEnv > 1000) { lastEnv = now; lum = vie.daylight(); hum = vie.humeur(state, config); }
-  if (!lum) { lum = vie.daylight(); hum = vie.humeur(state, config); }
-  stepWalkers(dt);
-  vie.stepFaune(faune, mapGeom(), dt, isAquatic(), lum);
-  drawMap(t);
-}
-
-function drawMap(t) {
-  const g = mapGeom(); const p = stage().palette; const ctx = cctx;
-  const L = lum || vie.daylight(), H = hum || { v: 0 };
-  ctx.clearRect(0, 0, g.w, g.h);
-  if (isAquatic()) drawWater(ctx, g, p, t); else drawLand(ctx, g, p, t);
-  vie.drawCiel(ctx, g, p, t, L);
-  drawEnvelope(ctx, g, p);
-
-  // Tout ce qui est pose au sol, trie par profondeur (y croissant = devant)
-  const items = [];
-  items.push({ y: g.cy, draw: () => drawCore(ctx, g, p, t) });
-  for (const def of C().buildings) {
-    const lvl = levelOf(def.id); const busy = inQueue(def.id);
-    if (!lvl && !busy) continue;
-    const a = -Math.PI / 2 + (def.slot / RING_SLOTS) * Math.PI * 2;
-    const x = g.cx + Math.cos(a) * g.rx * 1.18, y = g.cy + Math.sin(a) * g.ry * 1.32;
-    items.push({ y, draw: () => drawBuildingArt(ctx, { x, y, s: Math.min(g.w * 0.062, 24), shape: def.shape, level: lvl, busy, t, palette: p, aquatic: isAquatic() }) });
-  }
-  // Les habitants sont de la meme espece, pas des clones : chacun garde sa propre graine, donc
-  // sa nuance, sa livree et ses petites asymetries. C'est ce qui fait qu'une colonie a l'air
-  // peuplee plutot que dupliquee.
-  const visual = speciesVisual();
-  for (const wk of walkers) {
-    if (!wk.vis) wk.vis = { ...visual, seed: ((visual.seed | 0) + wk.i * 7919) >>> 0 };
-    items.push({ y: wk.y, draw: () => {
-      drawCreature(ctx, wk.vis, { x: wk.x, y: wk.y, size: 34, t, tint: p.tint, facing: wk.facing, pose: wk.wait > 0 ? 'idle' : 'walk' });
-      vie.drawCharge(ctx, wk, 34, RES_COL());
-    } });
-  }
-  items.sort((a, b) => a.y - b.y);
-  for (const it of items) it.draw();
-
-  // Ce qui passe et ne t'appartient pas, puis la lumiere de l'heure, puis la fete d'un jour parfait.
-  vie.drawFaune(ctx, faune, g, t, p, L);
-  vie.drawVoile(ctx, g, L, H);
-  vie.drawFete(ctx, g, t, H, p);
-}
-// Couleur d'une ressource, pour la cargaison des porteurs.
-let _resCol = null;
-function RES_COL() {
-  if (!_resCol) { _resCol = {}; for (const [k, v] of Object.entries(C().resources)) _resCol[k] = v.color; }
-  return _resCol;
-}
-
-function drawWater(ctx, g, p, t) {
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, g.w, g.h);
-  // bandes d'eau en aplats
-  ctx.fillStyle = p.bg2; ctx.fillRect(0, g.h * 0.30, g.w, g.h * 0.70);
-  ctx.fillStyle = p.ground;
-  ctx.beginPath(); ctx.moveTo(0, g.h);
-  ctx.lineTo(0, g.h * 0.80);
-  for (let x = 0; x <= g.w; x += g.w / 6) ctx.quadraticCurveTo(x + g.w / 12, g.h * 0.74, x + g.w / 6, g.h * 0.80);
-  ctx.lineTo(g.w, g.h); ctx.closePath(); ctx.fill();
-  // bulles
-  ctx.fillStyle = 'rgba(255,255,255,.18)';
-  for (let i = 0; i < 14; i++) {
-    const bx = ((i * 97) % 100) / 100 * g.w;
-    const by = g.h - (((t * (12 + i % 5) + i * 30) % (g.h * 1.1)));
-    ctx.beginPath(); ctx.arc(bx, by, 2 + (i % 3), 0, 6.28); ctx.fill();
-  }
-}
-function drawLand(ctx, g, p, t) {
-  const hz = g.h * 0.32; // ligne d'horizon
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, g.w, hz + 2);
-  // Parallaxe : deux plans de collines qui derivent a des vitesses differentes. La scene n'est
-  // plus une image fixe, elle a une profondeur — et donc une camera.
-  const d1 = (t * 1.6) % (g.w * 2), d2 = (t * 3.4) % (g.w * 2);
-  ctx.fillStyle = shade(p.ground, -0.34);
-  for (const [hx, hr] of [[g.w * 0.10, g.w * 0.30], [g.w * 0.62, g.w * 0.34], [g.w * 1.15, g.w * 0.28]]) {
-    for (const o of [0, -g.w * 2]) { ctx.beginPath(); ctx.ellipse(hx - d1 + o, hz + 3, hr, g.h * 0.10, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); }
-  }
-  ctx.fillStyle = shade(p.ground, -0.22);
-  for (const [hx, hr] of [[g.w * 0.18, g.w * 0.22], [g.w * 0.55, g.w * 0.26], [g.w * 0.9, g.w * 0.2], [g.w * 1.4, g.w * 0.24]]) {
-    for (const o of [0, -g.w * 2]) { ctx.beginPath(); ctx.ellipse(hx - d2 + o, hz, hr, g.h * 0.12, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); }
-  }
-  ctx.fillStyle = p.ground;
-  ctx.beginPath(); ctx.moveTo(0, g.h); ctx.lineTo(0, hz);
-  for (let x = 0; x <= g.w; x += g.w / 5) ctx.quadraticCurveTo(x + g.w / 10, hz - g.h * 0.03, x + g.w / 5, hz);
-  ctx.lineTo(g.w, g.h); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
-  // clairiere plus claire au centre de la Colonie
-  ctx.beginPath(); ctx.ellipse(g.cx, g.cy + g.ry * 0.2, g.rx * 1.6, g.ry * 1.5, 0, 0, 6.28);
-  ctx.fillStyle = shade(p.ground, .1); ctx.fill();
-}
-
-// Enveloppe : rien / cercle de pierres / palissade / muraille / dome (contours simples)
-function drawEnvelope(ctx, g, p) {
-  const th = C().envelope_stages.thresholds;
-  const n = builtCount();
-  let tier = 0;
-  for (let i = 0; i < th.length; i++) if (n >= th[i]) tier = i;
-  if (!tier) return;
-  const rx = Math.min(g.rx * 1.5, g.w / 2 - 10), ry = g.ry * 1.45;
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  if (tier === 1) { // cercle de pierres
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2;
-      ctx.beginPath(); ctx.ellipse(g.cx + Math.cos(a) * rx, g.cy + Math.sin(a) * ry, 5, 4, 0, 0, 6.28);
-      ctx.fillStyle = shade(p.ground, .25); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = INK; ctx.stroke();
-    }
-  } else if (tier === 2) { // palissade : rail + pieux
-    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, rx, ry, 0, 0, 6.28);
-    ctx.lineWidth = 5; ctx.strokeStyle = INK; ctx.stroke();
-    ctx.lineWidth = 2.5; ctx.strokeStyle = '#8A5A1C'; ctx.stroke();
-    for (let i = 0; i < 22; i++) {
-      const a = (i / 22) * Math.PI * 2;
-      const x = g.cx + Math.cos(a) * rx, y = g.cy + Math.sin(a) * ry;
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 12);
-      ctx.lineWidth = 5; ctx.strokeStyle = INK; ctx.stroke();
-      ctx.lineWidth = 2.4; ctx.strokeStyle = '#8A5A1C'; ctx.stroke();
-    }
-  } else if (tier === 3) { // muraille : anneau epais + creneaux
-    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, rx, ry, 0, 0, 6.28);
-    ctx.lineWidth = 9; ctx.strokeStyle = INK; ctx.stroke();
-    ctx.lineWidth = 5; ctx.strokeStyle = '#7A8598'; ctx.stroke();
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2;
-      const x = g.cx + Math.cos(a) * rx, y = g.cy + Math.sin(a) * ry;
-      ctx.beginPath(); ctx.rect(x - 4, y - 9, 8, 8);
-      ctx.fillStyle = '#7A8598'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = INK; ctx.stroke();
-    }
-  } else { // dome d'energie
-    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, rx, ry * 1.55, 0, Math.PI, 0);
-    ctx.lineWidth = 7; ctx.strokeStyle = INK; ctx.stroke();
-    ctx.lineWidth = 3.5; ctx.strokeStyle = p.tint; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, rx, ry, 0, 0, 6.28);
-    ctx.lineWidth = 3; ctx.strokeStyle = p.tint + '99'; ctx.stroke();
-  }
-}
-
-function drawCore(ctx, g, p, t) {
-  const x = g.cx, y = g.cy, r = Math.min(g.w * 0.11, 40);
-  drawBuildingArt(ctx, { x, y: y + r * .48, s: r, shape: 'core', level: state.colony.coreLevel, badge: false, palette: p, aquatic: isAquatic(), t });
-  // nom du Coeur
-  const label = skinName(C().core.names);
-  ctx.font = '700 12px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.strokeText(label, x, y + r + 12);
-  ctx.fillStyle = '#F4F1E8'; ctx.fillText(label, x, y + r + 12);
-}
-
+function isAquatic() { return stage().n <= 2; }

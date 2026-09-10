@@ -1,3 +1,5 @@
+import { drawEnvironment, drawAtmosphere, drawBattleTrack } from '../render/environments.js';
+import { placeUnits, inReach, distance, tacticalMove, resolveFormation, applyPressure, beginRetreat, shouldRetreat } from '../core/tactics.js';
 import { drawBuilding as drawBuildingArt, drawTurret } from '../render/buildings.js';
 // La Bataille — couloir horizontal facon We Are Warriors.
 // Trois terrains : campaign (base contre base), defense (vagues, source de Points de Stade
@@ -303,6 +305,7 @@ function startBattle(opts) {
     enemyBase,
     time: 0, shake: 0, freezeT: 0,
     order: CB().orders.default,
+    retreat: { p: { cd: 0, time: 0 }, e: { cd: 0, time: 0 } },
     targeting: CB().targeting.default,
     instincts, unitCards,
     drawPile: [], hand: [],
@@ -459,10 +462,11 @@ function buildOverlay() {
     : B.mode === 'defense' ? `Vague ${B.wave}` : `Raid · ${B.peril.name}`;
   const label = h('div', { class: 'pill', id: 'b-title' }, title);
   const orderBtn = h('button', { class: 'chip active', onClick: toggleOrder }, '⚔️ Attaquer');
+  const retreatBtn = h('button', { class: 'chip retreat-btn', title: 'Regrouper les survivants au Cœur · recharge 30 s', onClick: () => triggerRetreat('p') }, 'Retraite');
   const targetBtn = h('button', { class: 'chip', onClick: toggleTargeting }, '🎯 Proche');
   const quitBtn = h('button', { class: 'chip', onClick: abandon }, '✕');
   const note = h('div', { class: 'pill', style: { display: 'none', borderColor: 'var(--gold-d)', color: 'var(--gold)' } }, 'Récompenses du jour épuisées');
-  const hud = h('div', { class: 'battle-hud' }, label, orderBtn, targetBtn, h('div', { class: 'grow' }), note, quitBtn);
+  const hud = h('div', { class: 'battle-hud' }, label, orderBtn, targetBtn, retreatBtn, h('div', { class: 'grow' }), note, quitBtn);
   wrap.append(hud);
 
   const rb = bar(0, { color: 'var(--orange)', label: ' ', height: 22 });
@@ -486,7 +490,7 @@ function buildOverlay() {
   wrap.append(hand);
 
   document.body.append(wrap);
-  B.dom = { wrap, canvas, hud, label, orderBtn, targetBtn, note, rb, field, hand, powersRow };
+  B.dom = { wrap, canvas, hud, label, orderBtn, targetBtn, retreatBtn, note, rb, field, hand, powersRow };
   B.g = canvas.getContext('2d');
   resizeCanvas();
   B.onResize = () => resizeCanvas();
@@ -731,13 +735,19 @@ function update(dt) {
   // IA ennemie / vagues
   if (B.mode === 'defense') updateWaves(dt); else updateEnemyAI(dt);
 
+  placeUnits(B.units, CB().tactics);
+  updateRetreats(dt);
+  resolveFormation(B.units, CB().tactics, B.laneLen);
   // Unites
   for (const u of B.units) {
     if (u.dead) { u.deadT += dt; continue; }
     updateStatus(u, dt);
+    if (u.dead) continue;
     if (u.frozenT > 0) { u.pose = 'idle'; continue; }
     updateUnit(u, dt);
   }
+  applyPressure(B.units, CB().tactics, dt, B.laneLen);
+  resolveFormation(B.units, CB().tactics, B.laneLen);
   B.units = B.units.filter(u => !u.dead || u.deadT < CB().combat.death_fade_sec);
 
   for (const tu of B.turrets) if (tu.fireT > 0) tu.fireT = Math.max(0, tu.fireT - dt * 3.2);
@@ -752,6 +762,30 @@ function update(dt) {
 
   updateHandAffordability();
   checkEnd();
+}
+
+function triggerRetreat(side) {
+  if (!B || B.over || B.retreat[side].cd > 0 || !aliveUnits(side).length) return;
+  const r = B.retreat[side], c = CB().tactics;
+  r.cd = c.retreatCooldown; r.time = c.retreatDuration;
+  const home = side === 'p' ? B.playerBase.x : (B.enemyBase?.x ?? B.laneLen - B.lane.base_x_player);
+  beginRetreat(B.units, side, home, c);
+  if (side === 'p') toast('Retraite : rassemblement au Cœur', 'gold');
+}
+function updateRetreats(dt) {
+  const c = CB().tactics;
+  for (const side of ['p', 'e']) {
+    const r = B.retreat[side]; r.cd = Math.max(0, r.cd - dt);
+    if (r.time > 0) {
+      r.time = Math.max(0, r.time - dt);
+      if (!r.time) for (const u of aliveUnits(side)) { delete u.rally; u.retreating = false; }
+    }
+  }
+  const home = B.enemyBase?.x ?? B.laneLen - B.lane.base_x_player;
+  if (shouldRetreat(B.units, 'e', home, c)) triggerRetreat('e');
+  const r = B.retreat.p, label = r.time > 0 ? 'Regroupement…' : r.cd > 0 ? `Retraite · ${Math.ceil(r.cd)} s` : 'Retraite';
+  B.dom.retreatBtn.disabled = r.cd > 0 || !aliveUnits('p').length;
+  if (B.dom.retreatBtn.textContent !== label) B.dom.retreatBtn.textContent = label;
 }
 
 function updateStatus(u, dt) {
@@ -786,11 +820,11 @@ function dmgOf(u) {
 }
 
 function pickTarget(u) {
-  const foes = aliveUnits(u.side === 'p' ? 'e' : 'p').filter(f => Math.abs(f.x - u.x) <= u.range);
+  const foes = aliveUnits(u.side === 'p' ? 'e' : 'p').filter(f => inReach(u, f, CB().tactics));
   if (!foes.length) return null;
   if (B.targeting === 'weakest' && u.side === 'p') return foes.reduce((a, b) => (b.hp < a.hp ? b : a));
   if (B.targeting === 'strongest' && u.side === 'p') return foes.reduce((a, b) => (b.hp > a.hp ? b : a));
-  return foes.reduce((a, b) => (Math.abs(b.x - u.x) < Math.abs(a.x - u.x) ? b : a));
+  return foes.reduce((a, b) => (distance(u, b) < distance(u, a) ? b : a));
 }
 function targetBase(u) {
   if (u.side === 'p') {
@@ -802,9 +836,14 @@ function targetBase(u) {
 
 function updateUnit(u, dt) {
   u.cd -= dt;
+  const retreat = B.retreat[u.side].time > 0;
+  u.retreating = retreat;
+  const base = u.side === 'p' ? B.playerBase.x : (B.enemyBase?.x ?? B.laneLen - B.lane.base_x_player);
+  const baseTarget = targetBase(u);
+  if (tacticalMove(u, B.units, dt, speedOf(u), CB().tactics, { home: base, laneLen: B.laneLen, retreat, baseInReach: !!baseTarget, hold: u.side === 'p' && B.order === 'hold' ? holdX() : null })) return;
   // Soigneur : cherche un allie blesse a portee
   if (u.role === 'support' && u.heal > 0) {
-    const allies = aliveUnits(u.side).filter(a => a !== u && Math.abs(a.x - u.x) <= u.range && a.hp < a.maxHp);
+    const allies = aliveUnits(u.side).filter(a => a !== u && distance(u, a) <= u.range && a.hp < a.maxHp);
     if (allies.length && u.cd <= 0) {
       u.pose = 'attack'; u.cd = u.interval;
       if (u.trait === 'heal_all') for (const a of allies) healUnit(a, u.heal);
@@ -830,12 +869,7 @@ function updateUnit(u, dt) {
     }
     return;
   }
-  // Avance
-  u.pose = 'walk';
-  const dir = u.side === 'p' ? 1 : -1;
-  if (u.side === 'p' && B.order === 'hold' && u.x >= holdX()) { u.pose = 'idle'; return; }
-  u.x += dir * speedOf(u) * dt;
-  u.x = Math.max(0, Math.min(B.laneLen, u.x));
+  u.pose = 'idle';
 }
 
 function attack(u, tgt) {
@@ -900,17 +934,19 @@ function updateProjectiles(dt) {
   const sp = CB().combat.projectile_speed;
   for (const p of B.projectiles) {
     if (p.delay > 0) { p.delay -= dt; continue; }
-    p.x += p.dir * sp * dt;
     const t = p.target;
     const alive = t && (t.dead === undefined ? t.hp > 0 : !t.dead);
     if (!alive) { p.done = true; continue; }
-    if ((p.dir > 0 && p.x >= t.x) || (p.dir < 0 && p.x <= t.x)) {
+    const targetRow = t._row || 0;
+    const dx = t.x - p.x, dy = (targetRow - (p.row || 0)) * CB().tactics.rowStep;
+    const distanceLeft = Math.hypot(dx, dy), travel = sp * dt;
+    if (distanceLeft <= travel) {
       const crit = Math.random() < CB().combat.crit_chance;
       const d = p.dmg * (crit ? CB().combat.crit_mult : 1);
       if (t.side) { hurt(t, d, p.from, crit); if (p.from) applyOnHit(p.from, t); }
       else hurtBase(t, d, crit);
       p.done = true;
-    }
+    } else { p.x += dx / distanceLeft * travel; p.row = (p.row || 0) + dy / distanceLeft * travel / CB().tactics.rowStep; }
     if (p.x < 0 || p.x > B.laneLen) p.done = true;
   }
   B.projectiles = B.projectiles.filter(p => !p.done);
@@ -1119,7 +1155,6 @@ function leaveBattle() {
 // ------------------------------------------------------------------
 // Rendu
 // ------------------------------------------------------------------
-function shadeHex(hex, amt) { const n = parseInt(hex.slice(1), 16); const f = (c) => Math.max(0, Math.min(255, Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt))); return '#' + ((f(n >> 16) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).padStart(6, '0'); }
 
 // --- Geometrie du couloir -----------------------------------------
 // Le couloir n'est pas horizontal : il descend du haut-gauche (t=0, base joueur, au loin)
@@ -1139,7 +1174,6 @@ function depthAt(t) { const v = V(); return v.far_scale + (v.near_scale - v.far_
 // Taille de reference d'une unite, avant profondeur.
 function unitRef() { return Math.min(B.W, B.H) * V().unit_pct; }
 function unitPx(u) { return unitRef() * u.sizeMult; }
-function horizonY() { return laneEnds().y0 - Math.min(B.W, B.H) * V().horizon_lift; }
 
 // Position de couloir (0..laneLen) + rang lateral -> coordonnees ecran et echelle de profondeur.
 function project(x, row = 0) {
@@ -1155,28 +1189,7 @@ function project(x, row = 0) {
   return { px, py, s };
 }
 
-// Les unites qui occupent le meme endroit du couloir prennent des rangs lateraux differents
-// (0, +1, -1, +2, -2...) : elles se rangent cote a cote avec un leger chevauchement au lieu de
-// se cacher, et restent denombrables. Au-dela de `rows`, on ouvre un second rideau en retrait.
-const ROW_ORDER = [0, 1, -1, 2, -2, 3, -3];
-function assignRows() {
-  const v = V(), rows = Math.max(1, Math.min(v.rows, ROW_ORDER.length));
-  for (const side of ['p', 'e']) {
-    const list = B.units.filter(u => u.side === side).sort((a, b) => a.x - b.x);
-    let anchor = -1e9, i = 0;
-    for (const u of list) {
-      if (u.x - anchor > v.row_x_window) { anchor = u.x; i = 0; }
-      u._row = ROW_ORDER[i % rows];
-      u._layer = Math.floor(i / rows);
-      i++;
-    }
-  }
-}
-// Position de dessin : les rideaux suivants reculent legerement pour ne pas se superposer.
-function drawX(u) {
-  const back = (u._layer || 0) * V().layer_setback * (u.side === 'p' ? -1 : 1);
-  return Math.max(-40, Math.min(B.laneLen + 40, u.x + back));
-}
+function drawX(u) { return u.x; }
 
 // Plafond d'unites simultanees et effectif actuel : le joueur doit voir combien il peut encore poser.
 function maxUnits() { return CB().field.max_units_start + CB().field.max_units_per_stage * (B.stage - 1); }
@@ -1220,40 +1233,9 @@ function draw() {
   g.save();
   if (B.shake > 0) g.translate((Math.random() - 0.5) * B.shake, (Math.random() - 0.5) * B.shake);
 
-  // fond
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, B.st.palette.bg); grad.addColorStop(1, B.st.palette.bg2);
-  g.fillStyle = grad; g.fillRect(-20, -20, W + 40, H + 40);
-  drawAmbient(g, W, H);
-
-  // decor lointain : 2 couches de collines / recifs en aplats (style sticker), astre
-  const hz = horizonY();
-  {
-    const aquatic = B.st.bodyplan === 'cell' || B.st.bodyplan === 'cluster';
-    g.save();
-    // astre (soleil / lune / lumiere filtree)
-    g.beginPath(); g.arc(W * 0.74, hz - H * 0.16, Math.min(W, H) * 0.09, 0, Math.PI * 2);
-    g.fillStyle = aquatic ? 'rgba(255,255,255,.08)' : (B.st.emissive ? '#FFF3C4' : '#FFC24B'); g.globalAlpha = aquatic ? 1 : .9; g.fill();
-    if (!aquatic) { g.lineWidth = 4; g.strokeStyle = INK; g.stroke(); }
-    g.globalAlpha = 1;
-    const rng2 = makeRng('hills' + B.st.n);
-    const layers = [{ y: hz - H * 0.11, a: H * 0.085, col: shadeHex(B.st.palette.bg2, .18), n: 5 }, { y: hz - H * 0.045, a: H * 0.055, col: shadeHex(B.st.palette.ground, -.25), n: 7 }];
-    for (const L of layers) {
-      g.beginPath(); g.moveTo(-20, hz + 10);
-      const seg = (W + 40) / L.n;
-      for (let i = 0; i <= L.n; i++) { const x = -20 + i * seg; const hh = L.a * (0.5 + rng2() * 0.5); g.lineTo(x - seg * 0.5, L.y); g.quadraticCurveTo(x, L.y - hh, x + seg * 0.5, L.y); }
-      g.lineTo(W + 20, hz + 10); g.closePath();
-      g.fillStyle = L.col; g.fill(); g.lineWidth = 4; g.strokeStyle = INK; g.stroke();
-    }
-    g.restore();
-  }
-  // sol : tout ce qui est sous l'horizon
-  g.fillStyle = B.st.palette.ground;
-  g.fillRect(-20, hz, W + 40, H - hz + 20);
-  g.beginPath(); g.moveTo(-20, hz); g.lineTo(W + 20, hz);
-  g.lineWidth = 4; g.strokeStyle = INK; g.stroke();
-  drawGroundDecor(g, hz);
-  drawLane(g);
+  drawEnvironment(g, 'battle', B.st, W, H, B.time);
+  drawAtmosphere(g, B.st, W, H, B.time);
+  drawBattleTrack(g, W, H, V(), B.stage);
 
   drawBase(g, B.playerBase, B.st.palette.tint, 1);
   drawTurrets(g);
@@ -1271,7 +1253,6 @@ function draw() {
   B.deaths = B.deaths.filter(d => d.t < 0.4);
 
   // unites : rangees cote a cote, puis dessinees des plus lointaines aux plus proches
-  assignRows();
   const drawList = B.units.map(u => ({ u, p: project(drawX(u), u._row || 0) })).sort((a, b) => a.p.py - b.p.py);
   for (const d of drawList) drawUnit(g, d.u, d.p);
 
@@ -1321,71 +1302,6 @@ function draw() {
   g.restore();
 }
 
-function drawAmbient(g, W, H) {
-  const under = B.st.bodyplan === 'cell' || B.st.bodyplan === 'cluster';
-  const n = 7;
-  for (let i = 0; i < n; i++) {
-    const seed = i * 137.5;
-    if (under) {
-      const y = H * 0.62 - ((B.time * (12 + i * 4) + seed) % (H * 0.6));
-      const x = (seed * 3.3) % W;
-      g.beginPath(); g.arc(x, y, 5 + (i % 3) * 4, 0, Math.PI * 2);
-      g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 2; g.stroke();
-    } else {
-      const x = ((seed * 5.1 + B.time * (6 + i)) % (W + 160)) - 80;
-      const y = H * 0.12 + (i % 3) * H * 0.08;
-      g.fillStyle = 'rgba(255,255,255,.14)';
-      g.beginPath();
-      g.ellipse(x, y, 42 + i * 5, 16 + (i % 2) * 5, 0, 0, Math.PI * 2);
-      g.ellipse(x + 30, y - 8, 26, 13, 0, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
-}
-function drawGroundDecor(g, hz) {
-  const rng = makeRng('decor' + B.stage);
-  for (let i = 0; i < 10; i++) {
-    const y = hz + (B.H - hz) * (0.12 + rng() * 0.85);
-    const near = (y - hz) / Math.max(1, B.H - hz);
-    const x = rng() * B.W;
-    const w = (14 + rng() * 30) * (0.5 + near), hh = (5 + rng() * 10) * (0.5 + near);
-    g.beginPath(); g.ellipse(x, y, w, hh, 0, Math.PI, 0);
-    g.fillStyle = 'rgba(0,0,0,.16)'; g.fill();
-  }
-  for (let i = 0; i < 8; i++) {
-    const y = hz + (B.H - hz) * (0.1 + rng() * 0.85);
-    const near = (y - hz) / Math.max(1, B.H - hz);
-    const x = rng() * B.W;
-    const hgt = (8 + rng() * 14) * (0.5 + near);
-    g.beginPath();
-    g.moveTo(x, y);
-    g.quadraticCurveTo(x + 4, y - hgt * 0.7, x + (rng() > 0.5 ? 7 : -7), y - hgt);
-    g.lineWidth = 3.5; g.strokeStyle = INK; g.lineCap = 'round'; g.stroke();
-    g.lineWidth = 2; g.strokeStyle = B.st.palette.tint; g.stroke();
-  }
-}
-
-// Le couloir lui-meme : une bande qui s'elargit en se rapprochant. C'est elle qui "dit" la profondeur.
-function drawLane(g) {
-  const v = V(), n = laneNormal(), steps = 14;
-  const left = [], right = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = -0.14 + 1.28 * (i / steps);
-    const p = project(t * B.laneLen);
-    const hw = unitRef() * v.lane_half_width * p.s;
-    left.push([p.px - n.nx * hw, p.py - n.ny * hw]);
-    right.push([p.px + n.nx * hw, p.py + n.ny * hw]);
-  }
-  g.beginPath();
-  g.moveTo(left[0][0], left[0][1]);
-  for (const q of left) g.lineTo(q[0], q[1]);
-  for (let i = right.length - 1; i >= 0; i--) g.lineTo(right[i][0], right[i][1]);
-  g.closePath();
-  g.fillStyle = shadeHex(B.st.palette.ground, .12);
-  g.fill();
-  g.lineWidth = 4; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
-}
-
 // Ombre portee au sol : cale les unites et les bases dans la perspective.
 function groundShadow(g, px, py, r) {
   g.beginPath(); g.ellipse(px, py + r * 0.06, r * 1.05, r * 0.34, 0, 0, Math.PI * 2);
@@ -1429,7 +1345,7 @@ function drawUnit(g, u, p) {
     drawCreature(g, visual, {
       x: p.px, y: p.py, size, t: B.time + u.x * 0.01, tint,
       pose: dying ? 'idle' : u.pose, archetype: u.arch, role: u.role,
-      facing: u.side === 'p' ? 1 : -1, flash: u.flash,
+      facing: (u.side === 'p' ? 1 : -1) * (u.retreating ? -1 : 1), flash: u.flash,
       atk: u.interval > 0 ? Math.max(0, Math.min(1, 1 - u.cd / u.interval)) : null,
       dying: dying ? Math.min(1, u.deadT / CB().combat.death_fade_sec) : 0
     });
