@@ -1,4 +1,5 @@
 import { drawPaintedUnit, whenPaintedReady } from './painted.js';
+import { drawAnatomy, hasPaintedAnatomy, whenAnatomyReady } from './anatomy.js';
 // Reliques vivantes. Un corps principal, une carapace, un foyer de détail.
 // Les dix stades héritent du noyau fendu. Grille normalisée, aplats, aucun flou.
 import { INK, shade, hueShift, groundShade } from './style.js';
@@ -101,6 +102,7 @@ function weapon(c, role, stage, M, arch, strike) {
 }
 
 export function drawCreature(ctx, visual = {}, opts = {}) {
+  if(opts.anatomy && drawAnatomy(ctx,visual,opts))return;
   if (opts.painted && drawPaintedUnit(ctx, visual, opts)) return;
   const { x = 0, y = 0, size = 80, tint = '#3FB8C9', facing = 1, pose = 'idle', archetype = 'eclaireur', flash = 0, dying = 0 } = opts;
   const arch = ARCH[archetype] || ARCH.eclaireur;
@@ -214,8 +216,9 @@ export function renderToCanvas(canvas, visual, opts = {}) {
   const arch = ARCH[opts.archetype] || ARCH.eclaireur;
   const length = 1 + ((visual.limb_len || 1) - 1) * .3;
   const painted = opts.painted !== false;
-  const size = painted ? Math.min(height*.8,w/1.5) : Math.min(Math.min(w, height) * (opts.scale || .78), w / (1.8 * arch.w), height * .74 / (arch.h * length));
+  const size = opts.anatomy && hasPaintedAnatomy(visual) ? Math.min(w,height)*.63 : painted ? Math.min(height*.8,w/1.5) : Math.min(Math.min(w, height) * (opts.scale || .78), w / (1.8 * arch.w), height * .74 / (arch.h * length));
   const draw = () => { ctx.clearRect(0, 0, w, height); drawCreature(ctx, visual, { x: w / 2, y: height * .88, painted, ...opts, size }); };
   draw();
-  if (painted) whenPaintedReady('units', visual.stage || 1).then(ready => { if (ready && canvas.isConnected) draw(); });
+  if(opts.anatomy&&hasPaintedAnatomy(visual))whenAnatomyReady(visual).then(ready=>{if(ready&&canvas.isConnected)draw();});
+  else if (painted) whenPaintedReady('units', visual.stage || 1).then(ready => { if (ready && canvas.isConnected) draw(); });
 }

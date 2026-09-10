@@ -141,6 +141,9 @@ textarea.mono { font-family: ui-monospace, monospace; font-size: 12px; font-weig
 .draft-card:active { transform: translateY(4px); box-shadow: none; }
 .draft-card canvas { width: 100%; aspect-ratio: 1; border-radius: 10px; background: var(--ink); }
 .draft-card .dc-name { font-family: var(--display); font-size: 14px; }
+.mutation-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.mutation-comparison figure { min-width: 0; margin: 0; text-align: center; font-size: 12px; }
+.mutation-comparison canvas { display: block; width: 100%; aspect-ratio: 1; background: var(--ink); border-radius: 12px; margin-bottom: 6px; }
 .draft-card .dc-desc { font-size: 11px; color: var(--chalk-d); font-weight: 700; }
 .rar-common { border-color: #7A8598 !important; } .rar-rare { border-color: var(--blue) !important; box-shadow: 0 4px 0 var(--ink), 0 0 12px rgba(78,168,232,.5) !important; }
 .rar-epic { border-color: var(--purple) !important; box-shadow: 0 4px 0 var(--ink), 0 0 14px rgba(167,107,217,.6) !important; }

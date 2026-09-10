@@ -42,6 +42,6 @@ for entry in sources:
     print(entry['key'],len(rects),'sprites')
 assert len(atlases) == 20
 existing = json.loads((root/'data/miniatures.json').read_text(encoding='utf8')) if (root/'data/miniatures.json').exists() else {'atlases':[]}
-atlases += [a for a in existing['atlases'] if a['kind'] == 'turrets']
+atlases += [a for a in existing['atlases'] if a['kind'] not in ('units','buildings')]
 (root/'data/miniatures.json').write_bytes((json.dumps({'atlases':atlases},indent=2)+'\n').encode('utf8'))
 print('Total:',sum(len(a['rects']) for a in atlases),'sprites;',round(sum(p.stat().st_size for p in out.glob('*.webp'))/1048576,2),'MiB')

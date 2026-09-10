@@ -2,7 +2,7 @@
 
 Jeu mobile personnel de suivi d'habitudes (PWA, vanilla JS, aucun build). Voir `docs/evolve-4.0-game-design.md`.
 
-Version 0.11.0 : combats accélérés, grades de vétéran et trois tourelles peintes à portée accrue. Voir [les grades et tourelles](docs/veterans-et-tourelles.md), ainsi que [les escouades et la direction artistique](docs/escouades-et-miniatures.md). Ateliers visuels : `tools/veterans.html`, `tools/miniatures.html` et `tools/worlds.html`.
+Version 0.12.0 : [portrait modulaire peint pour Cellule](docs/anatomie-modulaire.md), comparaison des mutations et grades à 3, 6 et 9 kills. Voir aussi [les grades et tourelles](docs/veterans-et-tourelles.md) et [les escouades](docs/escouades-et-miniatures.md). Ateliers visuels : `tools/anatomy.html`, `tools/veterans.html`, `tools/miniatures.html` et `tools/worlds.html`.
 
 ## Lancer en local
 `python3 -m http.server 8765` puis ouvrir http://localhost:8765/

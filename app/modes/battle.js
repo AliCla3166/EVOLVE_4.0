@@ -1,5 +1,5 @@
 import {drawVeteranGrade} from '../render/veterancy.js';
-import {updateVeterancy,veteranBonus,receivedDamage} from '../core/veterancy.js';
+import {updateVeterancy,veteranBonus,receivedDamage,creditKill} from '../core/veterancy.js';
 import {whenPaintedReady} from '../render/painted.js';
 import { squadSize, collectionLevel, deploySquad, assignTargets, ballisticPoint } from '../core/squads.js';
 import { drawEnvironment, drawAtmosphere, drawBattleTrack } from '../render/environments.js';
@@ -755,7 +755,7 @@ function update(dt) {
   // Unites
   for (const u of B.units) {
     if (u.dead) { u.deadT += dt; continue; }
-    if(updateVeterancy(u,dt,CB().veterancy)) B.floaters.push({x:u.x,row:u._row||0,y:-unitPx(u)*1.5,text:CB().veterancy.grades[u.veteranRank-1].label,color:CB().veterancy.grades[u.veteranRank-1].color,t:0,big:true});
+    if(updateVeterancy(u,CB().veterancy)) B.floaters.push({x:u.x,row:u._row||0,y:-unitPx(u)*1.5,text:CB().veterancy.grades[u.veteranRank-1].label,color:CB().veterancy.grades[u.veteranRank-1].color,t:0,big:true});
     updateStatus(u, dt);
     if (u.dead) continue;
     if (u.frozenT > 0) { u.pose = 'idle'; continue; }
@@ -934,9 +934,8 @@ function killUnit(u, from) {
   for (let i = 0; i < 8; i++) {
     B.particles.push({ x: u.x, row: u._row || 0, y: -unitPx(u) * 0.8, vx: (Math.random() - 0.5) * 90, vy: -40 - Math.random() * 90, life: 0.5 + Math.random() * 0.3, r: 3 + Math.random() * 4, color: u.side === 'p' ? B.st.palette.tint : B.fac.tint });
   }
+  if(creditKill(u,from)&&from.trait==='alpha')from.alphaStacks++;
   if (from && from.side === 'p' && u.side === 'e') {
-    from.kills++;
-    if (from.trait === 'alpha') from.alphaStacks++;
     if (from.cardId) B.killsByCard[from.cardId] = (B.killsByCard[from.cardId] || 0) + 1;
     B.totalKills++;
     for (const e of B.instincts) if (e.kind === 'on_kill_ration') B.ration = Math.min(B.rationMax, B.ration + (e.amount || 0));

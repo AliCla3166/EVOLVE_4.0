@@ -590,31 +590,31 @@
     "unitDamageTaken": 1.65,
     "grades": [
       {
-        "seconds": 12,
         "label": "Vétéran",
         "damage": 0.15,
         "attackSpeed": 0.12,
         "resistance": 0.08,
         "size": 0.08,
-        "color": "#D6AE82"
+        "color": "#D6AE82",
+        "kills": 3
       },
       {
-        "seconds": 24,
         "label": "Élite",
         "damage": 0.3,
         "attackSpeed": 0.24,
         "resistance": 0.15,
         "size": 0.16,
-        "color": "#C5DCE5"
+        "color": "#C5DCE5",
+        "kills": 6
       },
       {
-        "seconds": 40,
         "label": "Champion",
         "damage": 0.5,
         "attackSpeed": 0.4,
         "resistance": 0.22,
         "size": 0.24,
-        "color": "#FFC24B"
+        "color": "#FFC24B",
+        "kills": 9
       }
     ]
   }

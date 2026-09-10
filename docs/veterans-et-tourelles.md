@@ -2,13 +2,13 @@
 
 Les unités des deux camps subissent 65 % de dégâts supplémentaires. À dégâts constants, une recrue perd donc ses PV environ 39 % plus vite. Cela concerne aussi les tourelles et les dégâts périodiques ; les PV des bases ne sont pas affectés par ce multiplicateur.
 
-Chaque individu gagne des grades temporaires selon son temps de survie sur le terrain, y compris pendant une retraite. Les grades repartent à zéro pour une nouvelle unité et ne sont pas sauvegardés entre les batailles. Une promotion ne soigne pas et n’augmente pas les PV maximum.
+Chaque individu gagne des grades temporaires toutes les trois éliminations personnelles (3, 6 et 9 kills), pour les deux camps. Le temps de survie seul ne donne aucun grade. Les grades repartent à zéro pour une nouvelle unité et ne sont pas sauvegardés entre les batailles. Une promotion ne soigne pas et n’augmente pas les PV maximum.
 
-| Grade | Survie | Dégâts | Cadence | Réduction des dégâts reçus | Taille |
+| Grade | Kills | Dégâts | Cadence | Réduction des dégâts reçus | Taille |
 |---|---:|---:|---:|---:|---:|
-| Vétéran | 12 s | +15 % | +12 % | 8 % | +8 % |
-| Élite | 24 s | +30 % | +24 % | 15 % | +16 % |
-| Champion | 40 s | +50 % | +40 % | 22 % | +24 % |
+| Vétéran | 3 | +15 % | +12 % | 8 % | +8 % |
+| Élite | 6 | +30 % | +24 % | 15 % | +16 % |
+| Champion | 9 | +50 % | +40 % | 22 % | +24 % |
 
 Ces bonus sont des totaux par grade, non des multiplicateurs successifs. La cadence augmente en réduisant l’intervalle entre attaques. La résistance s’applique après l’augmentation générale des dégâts. Le grossissement agrandit également le disque de séparation physique. Un anneau et un à trois chevrons bronze, argent ou or indiquent le grade autour de l’unité ; son nom apparaît à la promotion.
 

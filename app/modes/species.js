@@ -1,3 +1,6 @@
+import {showMutationPreview} from '../render/mutation-preview.js';
+import {drawEnvironment,drawAtmosphere} from '../render/environments.js';
+import {hasPaintedAnatomy} from '../render/anatomy.js';
 // L'Espece — la Lignee : creature procedurale, genome a 6 axes, drafts de mutation, stades, Nouveau Cycle.
 import { resetSettlement } from '../core/settlement.js';
 import { config, stageOf } from '../core/config.js';
@@ -10,7 +13,7 @@ import { h, btn, panel, bar, toast, modal, fmt, confirmModal } from '../core/ui.
 import * as audio from '../core/audio.js';
 import { checkCodex } from './codex.js';
 
-let ctx, root, raf = null, canvas;
+let ctx, root, raf = null, canvas, morphFrom=null, morphStarted=0;
 
 export function mount(el, c) { ctx = c; root = el; render(); }
 export function unmount() { if (raf) cancelAnimationFrame(raf); raf = null; }
@@ -45,6 +48,7 @@ function rollDraft(axis, seed) {
   return all;
 }
 function takeMutation(draftIdx, id) {
+  morphFrom=speciesVisual();morphStarted=performance.now();
   const sp = state.species; sp.pendingDrafts.splice(draftIdx, 1);
   sp.mutations.push({ id, date: dayKey() });
   audio.play('mutation', { force: true });
@@ -69,7 +73,7 @@ function cinematic(st) {
   let t0 = performance.now();
   const loop = (now) => { const t = (now - t0) / 1000; const c = cv.getContext('2d'); const dpr = 2; cv.width = cv.clientWidth * dpr; cv.height = 220 * dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, cv.clientWidth, 220);
     c.save(); c.globalAlpha = .6; for (let i = 0; i < 12; i++) { const a = i / 12 * 6.28 + t; c.beginPath(); c.arc(cv.clientWidth / 2 + Math.cos(a) * (60 + t * 30), 130 + Math.sin(a) * (30 + t * 15), 4, 0, 6.28); c.fillStyle = st.palette.tint; c.fill(); } c.restore();
-    drawCreature(c, speciesVisual(), { x: cv.clientWidth / 2, y: 200, size: 130 + Math.sin(t * 3) * 6, t, tint: st.palette.tint, pose: 'idle' });
+    drawCreature(c, speciesVisual(), { anatomy:true, x: cv.clientWidth / 2, y: 200, size: 130 + Math.sin(t * 3) * 6, t, tint: st.palette.tint, pose: 'idle' });
     if (document.body.contains(cv)) requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 }
@@ -99,9 +103,11 @@ function render() {
   const scene = h('div', { class: 'creature-stage' }, canvas = h('canvas'), h('div', { class: 'stage-badge' }, `${st.icon} Stade ${sp.stage} · ${st.name}`), sp.cycle > 1 ? h('div', { class: 'stage-badge', style: { left: 'auto', right: '10px', color: 'var(--gold)' } }, `Cycle ${sp.cycle}`) : null);
   root.append(scene);
   let t0 = performance.now();
-  const loop = (now) => { const t = (now - t0) / 1000; const c = canvas.getContext('2d'); const dpr = Math.min(2, devicePixelRatio || 1); const W = canvas.clientWidth, Hh = canvas.clientHeight; if (canvas.width !== W * dpr) { canvas.width = W * dpr; canvas.height = Hh * dpr; } c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, Hh);
+  const loop = (now) => { const t = (now - t0) / 1000; const c = canvas.getContext('2d'); const dpr = Math.min(2, devicePixelRatio || 1); const W = canvas.clientWidth, Hh = canvas.clientHeight; if (canvas.width !== W * dpr || canvas.height !== Hh * dpr) { canvas.width = W * dpr; canvas.height = Hh * dpr; } c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, Hh);
     drawBackdrop(c, W, Hh, st, t);
-    drawCreature(c, speciesVisual(), { x: W / 2, y: Hh * .86, size: Math.min(W, Hh) * .78, t, tint: st.palette.tint, pose: 'idle' });
+    const visual=speciesVisual(),progress=Math.min(1,(now-morphStarted)/850),options={anatomy:true,x:W/2,y:Hh*.87,size:Math.min(W,Hh)*(hasPaintedAnatomy(visual)?.67:.78),t,tint:st.palette.tint,pose:'idle'};
+    if(morphFrom&&progress<1){c.save();c.globalAlpha=1-progress;drawCreature(c,morphFrom,options);c.restore();}
+    c.save();if(morphFrom&&progress<1)c.globalAlpha=progress;drawCreature(c,visual,options);c.restore();
     raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
   // nom
@@ -116,9 +122,9 @@ function render() {
     d.options.forEach((id) => {
       const def = mutationById(id); if (!def) return;
       const cv = h('canvas');
-      const card = h('div', { class: `draft-card rar-${def.rarity}`, onClick: () => takeMutation(0, id) }, cv, h('div', { class: 'dc-name' }, def.name), h('div', { class: 'dc-desc' }, def.desc), h('div', { class: 'small', style: { color: ax.color } }, Object.entries(def.stats).map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}%`).join(' · ')));
+      const card = h('div', { class: `draft-card rar-${def.rarity}`, onClick: () => previewMutation(id) }, cv, h('div', { class: 'dc-name' }, def.name), h('div', { class: 'dc-desc' }, def.desc), h('div', { class: 'small', style: { color: ax.color } }, Object.entries(def.stats).map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}%`).join(' · ')));
       grid.append(card);
-      requestAnimationFrame(() => { const preview = speciesVisual({ ...sp, mutations: [...sp.mutations, { id }] }); renderToCanvas(cv, preview, { tint: st.palette.tint, t: 1, scale: .85 }); });
+      requestAnimationFrame(() => { const preview = speciesVisual({ ...sp, mutations: [...sp.mutations, { id }] }); renderToCanvas(cv, preview, { anatomy:true,painted:false,tint: st.palette.tint, t: 1, scale: .85 }); });
     });
     p.append(grid); root.append(p);
   }
@@ -154,6 +160,7 @@ function render() {
   root.append(panel('Les 10 stades', stages));
 }
 function drawBackdrop(c, W, H, st, t) {
+  if(st.n===1){drawEnvironment(c,'colony',st,W,H,t);c.fillStyle='rgba(7,23,30,.3)';c.fillRect(0,0,W,H);drawAtmosphere(c,st,W,H,t);return;}
   const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, st.palette.bg); g.addColorStop(1, st.palette.bg2); c.fillStyle = g; c.fillRect(0, 0, W, H);
   const aquatic = st.bodyplan === 'cell' || st.bodyplan === 'cluster';
   c.save(); c.globalAlpha = .35; c.strokeStyle = st.palette.tint; c.lineWidth = 2;
@@ -162,4 +169,9 @@ function drawBackdrop(c, W, H, st, t) {
   if (st.emissive) { const r = c.createRadialGradient(W / 2, H * .6, 10, W / 2, H * .6, W * .6); r.addColorStop(0, 'rgba(255,240,200,.5)'); r.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = r; c.fillRect(0, 0, W, H); }
   // sol
   c.fillStyle = st.palette.ground; c.beginPath(); c.ellipse(W / 2, H * .92, W * .6, H * .12, 0, 0, 6.28); c.fill();
+}
+
+function previewMutation(id){
+  const sp=state.species,def=mutationById(id),st=stageOf(sp.stage),before=speciesVisual(),after=speciesVisual({...sp,mutations:[...sp.mutations,{id}]});
+  showMutationPreview({def,st,before,after,onChoose:()=>takeMutation(0,id)});
 }
