@@ -7,9 +7,9 @@
     "spawn_offset": 70
   },
   "ration": {
-    "start": 20,
-    "rate_per_sec": 1.6,
-    "max": 120,
+    "start": 32,
+    "rate_per_sec": 2.6,
+    "max": 180,
     "start_biomasse_max": 30,
     "start_bonus_per_biomasse": 0.4,
     "start_bonus_max": 30
@@ -20,12 +20,12 @@
     "draw_on_play": true
   },
   "field": {
-    "max_units_start": 4,
-    "max_units_per_stage": 1
+    "max_units_start": 24,
+    "max_units_per_stage": 4
   },
   "base": {
-    "hp_base": 300,
-    "hp_per_stage": 150
+    "hp_base": 720,
+    "hp_per_stage": 360
   },
   "cost_formula": {
     "_comment": "cout = round((hp/hp_div + dps*dps_mult + speed/speed_div + range/range_div) * cost_mult) — la regle d'equilibrage centrale : tu peux creer n'importe quoi, le jeu en fixe le prix.",
@@ -357,9 +357,9 @@
     "levels_per_stage": 40,
     "enemy_hp_growth": 1.07,
     "enemy_dmg_growth": 1.05,
-    "enemy_ration_rate_base": 1.2,
+    "enemy_ration_rate_base": 1.92,
     "enemy_ration_growth": 1.03,
-    "enemy_base_hp": 250,
+    "enemy_base_hp": 600,
     "enemy_base_hp_growth": 1.06,
     "rewards": {
       "genes_base": 10,
@@ -482,10 +482,10 @@
     "horizon_lift": 0.08,
     "far_scale": 0.78,
     "near_scale": 1.16,
-    "unit_pct": 0.085,
-    "base_scale": 1.15,
-    "lane_half_width": 1.8,
-    "row_spacing": 0.7,
+    "unit_pct": 0.058,
+    "base_scale": 1.7,
+    "lane_half_width": 4.0,
+    "row_spacing": 0.85,
     "row_depth": 0.035,
     "rows": 5,
     "row_x_window": 40,
@@ -531,19 +531,19 @@
   },
   "tactics": {
     "_comment": "Mêmes collisions, recul tactique et formation pour les deux camps. Distances en unités du couloir. Aucune invulnérabilité pendant la retraite.",
-    "radius": 48,
+    "radius": 21,
     "separation": 5,
-    "rowStep": 100,
+    "rowStep": 50,
     "halfWidth": 200,
     "spawnWindow": 170,
-    "iterations": 12,
-    "backlineGap": 160,
+    "iterations": 8,
+    "backlineGap": 100,
     "positionTolerance": 3,
     "kiteDistance": 0.42,
     "approachDistance": 220,
     "pressureWindow": 220,
     "pushSpeed": 16,
-    "rallyOffset": 0,
+    "rallyOffset": 25,
     "retreatSpeed": 3.5,
     "retreatCooldown": 30,
     "retreatDuration": 10,
@@ -551,6 +551,39 @@
     "aiOutnumbered": 1.7,
     "aiHealth": 0.6,
     "aiHomeDistance": 240,
-    "retreatMinSpeed": 150
+    "retreatMinSpeed": 180,
+    "rows": 9
+  },
+  "squads": {
+    "members": {
+      "eclaireur": 5,
+      "brute": 4,
+      "tireur": 4,
+      "tank": 2,
+      "soigneur": 2
+    },
+    "reinforcementLevels": [
+      3,
+      6,
+      9
+    ],
+    "spacing": 48,
+    "statScale": {
+      "melee": 0.55,
+      "ranged": 0.55,
+      "tank": 0.85,
+      "support": 0.85
+    },
+    "movementSpeed": 1.65,
+    "attackInterval": 0.85,
+    "aggroDistance": 440,
+    "focusPenalty": 42,
+    "targetStickiness": 25,
+    "targetInterval": 0.35,
+    "cohesionDistance": 130,
+    "catchupSpeed": 1.22,
+    "arcHeight": 60,
+    "flightMin": 0.28,
+    "flightMax": 0.8
   }
 }

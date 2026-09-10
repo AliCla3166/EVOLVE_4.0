@@ -1,3 +1,4 @@
+import { squadSize, collectionLevel, deploySquad, assignTargets, ballisticPoint } from '../core/squads.js';
 import { drawEnvironment, drawAtmosphere, drawBattleTrack } from '../render/environments.js';
 import { placeUnits, inReach, distance, tacticalMove, resolveFormation, applyPressure, beginRetreat, shouldRetreat } from '../core/tactics.js';
 import { drawBuilding as drawBuildingArt, drawTurret } from '../render/buildings.js';
@@ -300,7 +301,7 @@ function startBattle(opts) {
     ration: R.start + startBonus, rationMax: R.max,
     rationRate: R.rate_per_sec * mult(pct, 'ration_rate'),
     enemyRation: 0,
-    units: [], projectiles: [], floaters: [], particles: [], deaths: [],
+    squadCount: 0, units: [], projectiles: [], floaters: [], particles: [], deaths: [],
     playerBase: { x: L.base_x_player, hp: baseHp, max: baseHp },
     enemyBase,
     time: 0, shake: 0, freezeT: 0,
@@ -410,8 +411,8 @@ function makePlayerUnit(card) {
   return {
     side: 'p', cardId: card.id, arch: card.archetype, role: A.role,
     x: B.lane.base_x_player + B.lane.spawn_offset,
-    hp, maxHp: hp, dmg, heal, speed: A.speed * mult(p, 'speed'),
-    range: A.range, interval: A.atk_interval, cd: A.atk_interval * 0.5,
+    hp: hp * CB().squads.statScale[A.role], maxHp: hp * CB().squads.statScale[A.role], dmg: dmg * CB().squads.statScale[A.role], heal: heal * CB().squads.statScale[A.role], speed: A.speed * mult(p, 'speed') * CB().squads.movementSpeed,
+    range: A.range, interval: A.atk_interval * CB().squads.attackInterval, cd: A.atk_interval * 0.5,
     sizeMult: A.size * (m.size || 1), trait: m.trait || null,
     foeN: (B.foeCount = (B.foeCount || 0) + 1),
     kills: 0, alphaStacks: 0, dots: [], slowT: 0, slowPct: 0, frozenT: 0,
@@ -437,8 +438,8 @@ function makeEnemyUnit(archId, opts = {}) {
   return {
     side: 'e', cardId: null, arch: boss ? 'boss' : archId, baseArch: archId, role: A.role,
     x: opts.x !== undefined ? opts.x : (B.mode === 'defense' ? B.laneLen : B.lane.base_x_enemy - B.lane.spawn_offset),
-    hp, maxHp: hp, dmg: (A.dmg || 0) * dmgMult, heal: (A.heal || 0) * hpMult,
-    speed: A.speed, range: A.range, interval: A.atk_interval, cd: A.atk_interval * 0.5,
+    hp: hp * CB().squads.statScale[A.role], maxHp: hp * CB().squads.statScale[A.role], dmg: (A.dmg || 0) * dmgMult * CB().squads.statScale[A.role], heal: (A.heal || 0) * hpMult * CB().squads.statScale[A.role],
+    speed: A.speed * CB().squads.movementSpeed, range: A.range, interval: A.atk_interval * CB().squads.attackInterval, cd: A.atk_interval * 0.5,
     sizeMult: A.size * (boss ? CB().combat.boss_size_mult : 1), trait: null,
     foeN: (B.foeCount = (B.foeCount || 0) + 1),
     kills: 0, alphaStacks: 0, dots: [], slowT: 0, slowPct: 0, frozenT: 0,
@@ -518,13 +519,14 @@ function cardStats(card) {
   const bud = cardBudget(card), p = B.pct, m = card.mods || {};
   const col = state.cards.collection[card.id];
   return {
+    members: squadSize(card.archetype, collectionLevel(col), CB().squads),
     role: A.role,
-    hp: Math.round(bud.hp * mult(p, 'hp') * mult(p, 'unit_hp') * (1 + instinctArchHpPct(card.archetype) / 100)),
-    dmg: Math.round(bud.dmg * mult(p, 'damage') * mult(p, 'unit_damage')),
-    heal: Math.round(bud.heal * mult(p, 'damage')),
+    hp: Math.round(bud.hp * mult(p, 'hp') * mult(p, 'unit_hp') * (1 + instinctArchHpPct(card.archetype) / 100) * CB().squads.statScale[A.role]),
+    dmg: Math.round(bud.dmg * mult(p, 'damage') * mult(p, 'unit_damage') * CB().squads.statScale[A.role]),
+    heal: Math.round(bud.heal * mult(p, 'damage') * CB().squads.statScale[A.role]),
     range: Math.round(A.range),
-    speed: Math.round(A.speed * mult(p, 'speed')),
-    interval: A.atk_interval,
+    speed: Math.round(A.speed * mult(p, 'speed') * CB().squads.movementSpeed),
+    interval: +(A.atk_interval * CB().squads.attackInterval).toFixed(2),
     trait: m.trait || null,
     level: Math.max(0, (col?.count || 0) - 2) + 1,
     levelPct: Math.round((bud.dup - 1) * 100),
@@ -556,6 +558,7 @@ function renderHand() {
     if (st) el.append(h('div', { class: 'hc-role', title: U.role_labels[st.role] }, U.role_icons[st.role]));
     if (st && st.level > 1) el.append(h('div', { class: 'hc-lvl', title: `Niveau ${st.level} · +${st.levelPct} % PV et dégâts` }, 'N' + st.level));
     el.append(h('div', { class: 'hc-name' }, card.name));
+    if (st) el.append(h('div', { class: 'hc-squad' }, `×${st.members} combattants`));
     el.append(h('div', { class: 'hc-stats' }, ...(st ? statChips(st) : [h('span', { class: 'hc-stat wide' }, '✦', h('b', {}, 'passif'))])));
 
     // Clic = jouer la carte. Appui long (ou bouton i) = fiche, sans interrompre la bataille.
@@ -592,6 +595,7 @@ function showCardInfo(card) {
   const prev = B.dom.wrap.querySelector('.card-info-veil'); if (prev) prev.remove();
   const rows = [];
   if (st) {
+    rows.push(h('div', { class: 'ci-row' }, h('span', {}, 'Escouade'), h('b', {}, `${st.members} combattants · stats par individu`)));
     const order = ['hp', st.role === 'support' ? 'heal' : 'dmg', 'range', 'speed', 'interval'];
     const val = { hp: st.hp, dmg: st.dmg, heal: st.heal, range: st.range, speed: st.speed, interval: st.interval + ' s' };
     for (const k of order) rows.push(h('div', { class: 'ci-row' }, h('span', {}, U.stat_icons[k] + ' ' + U.stat_labels[k]), h('b', {}, String(val[k]))));
@@ -604,6 +608,7 @@ function showCardInfo(card) {
     st ? h('div', { class: 'ci-bonus' },
       st.levelPct ? h('div', {}, `Niveau ${st.level} : +${st.levelPct} % PV et dégâts, cumulés depuis ${st.level - 1} doublon${st.level > 2 ? 's' : ''}.`) : null,
       st.editionPct ? h('div', {}, `Édition ${st.edition} : +${st.editionPct} % sur les stats.`) : null,
+      h('div', { class: 'muted' }, 'Renforts aux niveaux 3, 6 et 9 : +1 membre par palier.'),
       h('div', { class: 'muted' }, `Prochain doublon : +${CC().duplicate_level_pct} % PV et dégâts.`)) : null,
     h('div', { class: 'small muted', style: { marginTop: '8px' } }, 'Touche l’écran pour fermer.'));
   const veil = h('div', { class: 'card-info-veil', onClick: () => veil.remove() }, box);
@@ -613,6 +618,8 @@ function updateHandAffordability() {
   if (!B || !B.handEls) return;
   for (const e of B.handEls) {
     const free = B.freeCards > 0;
+    const full = alivePlayerUnits() + squadSize(e.card.archetype, collectionLevel(state.cards.collection[e.card.id]), CB().squads) > maxUnits();
+    e.el.classList.toggle('field-full', full);
     e.el.classList.toggle('unaffordable', !free && B.ration < e.cost);
   }
 }
@@ -621,13 +628,15 @@ function playCard(i) {
   if (!B || B.over) return;
   const card = B.hand[i];
   if (!card) return;
-  if (alivePlayerUnits() >= maxUnits()) { toast('Terrain plein', 'red'); return; }
+  const count = squadSize(card.archetype, collectionLevel(state.cards.collection[card.id]), CB().squads);
+  if (alivePlayerUnits() + count > maxUnits()) { toast(`Il faut ${count} places pour cette escouade`, 'red'); return; }
   const cost = cardCost(card);
   const free = B.freeCards > 0;
   if (!free && B.ration < cost) { toast('Pas assez de ration', 'red'); return; }
   if (free) B.freeCards--; else B.ration -= cost;
-  const u = makePlayerUnit(card);
-  B.units.push(u);
+  const group = deploySquad(() => makePlayerUnit(card), count, 'p' + (++B.squadCount), CB().squads, B.laneLen);
+  B.units.push(...group);
+  const u = group[0];
   if (u.trait === 'free_next') B.freeCards += (CB().traits.free_next.cards || 1);
   B.hand.splice(i, 1);
   if (CB().hand.draw_on_play) drawCard();
@@ -736,6 +745,7 @@ function update(dt) {
   if (B.mode === 'defense') updateWaves(dt); else updateEnemyAI(dt);
 
   placeUnits(B.units, CB().tactics);
+  assignTargets(B.units, dt, CB().squads);
   updateRetreats(dt);
   resolveFormation(B.units, CB().tactics, B.laneLen);
   // Unites
@@ -822,6 +832,8 @@ function dmgOf(u) {
 function pickTarget(u) {
   const foes = aliveUnits(u.side === 'p' ? 'e' : 'p').filter(f => inReach(u, f, CB().tactics));
   if (!foes.length) return null;
+  const assigned = foes.find(f => f.foeN === u.targetId);
+  if (assigned && (u.side === 'e' || !['weakest','strongest'].includes(B.targeting))) return assigned;
   if (B.targeting === 'weakest' && u.side === 'p') return foes.reduce((a, b) => (b.hp < a.hp ? b : a));
   if (B.targeting === 'strongest' && u.side === 'p') return foes.reduce((a, b) => (b.hp > a.hp ? b : a));
   return foes.reduce((a, b) => (distance(u, b) < distance(u, a) ? b : a));
@@ -840,7 +852,7 @@ function updateUnit(u, dt) {
   u.retreating = retreat;
   const base = u.side === 'p' ? B.playerBase.x : (B.enemyBase?.x ?? B.laneLen - B.lane.base_x_player);
   const baseTarget = targetBase(u);
-  if (tacticalMove(u, B.units, dt, speedOf(u), CB().tactics, { home: base, laneLen: B.laneLen, retreat, baseInReach: !!baseTarget, hold: u.side === 'p' && B.order === 'hold' ? holdX() : null })) return;
+  if (tacticalMove(u, B.units, dt, speedOf(u), CB().tactics, { home: base, laneLen: B.laneLen, retreat, baseInReach: !!baseTarget, squads: CB().squads, hold: u.side === 'p' && B.order === 'hold' ? holdX() : null })) return;
   // Soigneur : cherche un allie blesse a portee
   if (u.role === 'support' && u.heal > 0) {
     const allies = aliveUnits(u.side).filter(a => a !== u && distance(u, a) <= u.range && a.hp < a.maxHp);
@@ -937,16 +949,22 @@ function updateProjectiles(dt) {
     const t = p.target;
     const alive = t && (t.dead === undefined ? t.hp > 0 : !t.dead);
     if (!alive) { p.done = true; continue; }
-    const targetRow = t._row || 0;
-    const dx = t.x - p.x, dy = (targetRow - (p.row || 0)) * CB().tactics.rowStep;
-    const distanceLeft = Math.hypot(dx, dy), travel = sp * dt;
-    if (distanceLeft <= travel) {
+    if (p.age === undefined) {
+      p.age = 0; p.startX = p.x; p.startRow = p.row || 0; p.endX = t.x; p.endRow = t._row || 0;
+      p.duration = Math.max(CB().squads.flightMin, Math.min(CB().squads.flightMax, Math.abs(p.endX - p.startX) / sp));
+      p.arcHeight = CB().squads.arcHeight * (.75 + Math.min(1, Math.abs(p.endX - p.startX) / 250));
+    }
+    p.age += dt;
+    const flight = ballisticPoint(p, p.age / p.duration); p.x = flight.x; p.row = flight.row; p.lift = flight.lift;
+    if (p.age >= p.duration) {
+      // Le tir tombe au point visé ; une retraite assez rapide peut l'esquiver.
+      if (t.side && Math.hypot(t.x-p.endX, ((t._row||0)-p.endRow)*CB().tactics.rowStep) > CB().tactics.radius*(t.sizeMult||1)+18) { p.done=true; continue; }
       const crit = Math.random() < CB().combat.crit_chance;
       const d = p.dmg * (crit ? CB().combat.crit_mult : 1);
       if (t.side) { hurt(t, d, p.from, crit); if (p.from) applyOnHit(p.from, t); }
       else hurtBase(t, d, crit);
       p.done = true;
-    } else { p.x += dx / distanceLeft * travel; p.row = (p.row || 0) + dy / distanceLeft * travel / CB().tactics.rowStep; }
+    }
     if (p.x < 0 || p.x > B.laneLen) p.done = true;
   }
   B.projectiles = B.projectiles.filter(p => !p.done);
@@ -990,13 +1008,15 @@ function updateEnemyAI(dt) {
   const total = entries.reduce((s, [, w]) => s + w, 0);
   let r = Math.random() * total, pickId = entries[0][0];
   for (const [id, w] of entries) { r -= w; if (r <= 0) { pickId = id; break; } }
+  const count = squadSize(pickId, Math.min(9, 1 + Math.floor(lv / 4)), CB().squads);
+  if (aliveUnits('e').length + count > maxUnits()) return;
   const cost = enemyCost(pickId);
   if (B.enemyRation < cost) return;
   B.enemyRation -= cost;
   B.enemySpawnCd = CB().enemy_ai.spawn_interval_min_sec;
   const boss = B.mode === 'campaign' && state.battle.campaignLevel % CB().campaign.boss_every === 0 && !B.bossSpawned;
   if (boss) B.bossSpawned = true;
-  B.units.push(makeEnemyUnit(pickId, { boss }));
+  B.units.push(...deploySquad(i => makeEnemyUnit(pickId, { boss: boss && i === 0 }), count, 'e' + (++B.squadCount), CB().squads, B.laneLen));
 }
 
 // --- Vagues (defense), composition deterministe
@@ -1021,7 +1041,11 @@ function updateWaves(dt) {
   const D = CB().defense;
   B.waveT += dt;
   for (const e of B.waveQueue) {
-    if (!e.spawned && B.waveT >= e.at) { e.spawned = true; B.units.push(makeEnemyUnit(e.arch, { boss: e.boss })); }
+    if (!e.spawned && B.waveT >= e.at) {
+      const count = e.boss ? 1 : squadSize(e.arch, Math.min(9, 1 + Math.floor(B.wave / 5)), CB().squads);
+      if (aliveUnits('e').length + count > maxUnits()) continue;
+      e.spawned = true; B.units.push(...deploySquad(() => makeEnemyUnit(e.arch, { boss: e.boss }), count, 'w' + (++B.squadCount), CB().squads, B.laneLen));
+    }
   }
   const allSpawned = B.waveQueue.every(e => e.spawned);
   const foesLeft = aliveUnits('e').length;
@@ -1261,7 +1285,7 @@ function draw() {
     if (p.delay > 0) continue;
     const q = project(p.x, p.row || 0);
     g.beginPath();
-    g.ellipse(q.px, q.py - unitRef() * q.s * 0.55 + (p.yoff || 0), 6 * q.s, 4 * q.s, 0, 0, Math.PI * 2);
+    g.ellipse(q.px, q.py - unitRef() * q.s * 0.55 - (p.lift || 0) * q.s + (p.yoff || 0), 3.2 * q.s, 2.3 * q.s, 0, 0, Math.PI * 2);
     g.fillStyle = p.ghost ? '#FFC24B' : (p.side === 'p' ? B.st.palette.tint : B.fac.tint);
     g.fill(); g.lineWidth = 2.5; g.strokeStyle = INK; g.stroke();
   }
@@ -1311,7 +1335,7 @@ function groundShadow(g, px, py, r) {
 function drawBase(g, base, color, facing) {
   const p = project(base.x);
   const r = unitRef() * V().base_scale * p.s;
-  drawBuildingArt(g, { x: p.px, y: p.py, s: r, shape: 'core', palette: { ...B.st.palette, tint: color }, aquatic: B.st.n <= 2, badge: false, t: B.time });
+  drawBuildingArt(g, { stage: B.stage, x: p.px, y: p.py, s: r, shape: 'core', palette: { ...B.st.palette, tint: color }, aquatic: B.st.n <= 2, badge: false, t: B.time });
   // barre de PV
   const bw = r * 2.2, bh = Math.max(9, 12 * p.s), by = p.py - r * 2.3;
   g.fillStyle = INK; g.fillRect(p.px - bw / 2, by, bw, bh);
@@ -1338,13 +1362,17 @@ function drawUnit(g, u, p) {
   const dying = u.dead;
   g.save();
   if (dying) g.globalAlpha = Math.max(0, 1 - u.deadT / CB().combat.death_fade_sec);
-  else groundShadow(g, p.px, p.py, size * 0.5);
+  else {
+    groundShadow(g, p.px, p.py, size * 0.5);
+    g.strokeStyle=u.side==='p'?'#74D6CD':'#EF8875';g.globalAlpha=.6;g.lineWidth=1;
+    g.beginPath();g.ellipse(p.px,p.py,size*.3,size*.12,0,0,Math.PI*2);g.stroke();g.globalAlpha=1;
+  }
   const visual = u.side === 'p' ? B.visual : foeVisual(u);
   const tint = u.side === 'p' ? B.st.palette.tint : B.fac.tint;
   try {
     drawCreature(g, visual, {
       x: p.px, y: p.py, size, t: B.time + u.x * 0.01, tint,
-      pose: dying ? 'idle' : u.pose, archetype: u.arch, role: u.role,
+      painted: true, pose: dying ? 'idle' : u.pose, archetype: u.arch, role: u.role,
       facing: (u.side === 'p' ? 1 : -1) * (u.retreating ? -1 : 1), flash: u.flash,
       atk: u.interval > 0 ? Math.max(0, Math.min(1, 1 - u.cd / u.interval)) : null,
       dying: dying ? Math.min(1, u.deadT / CB().combat.death_fade_sec) : 0
@@ -1352,11 +1380,13 @@ function drawUnit(g, u, p) {
   } catch (e) { /* le rendu ne doit jamais casser la boucle */ }
   g.restore();
   if (dying) return;
-  // barre de PV
-  const bw = size * 0.62, bh = Math.max(4, 6 * p.s), by = p.py - size * 1.08;
+  // Les unités intactes gardent seulement leur repère au sol, pour lire les corps.
+  if (u.hp < u.maxHp || u.boss) {
+  const bw = size * 0.8, bh = Math.max(3, 4 * p.s), by = p.py - size * 1.08;
   g.fillStyle = INK; g.fillRect(p.px - bw / 2, by, bw, bh);
   g.fillStyle = u.side === 'p' ? '#45D95E' : '#EF5D50';
   g.fillRect(p.px - bw / 2 + 1.5, by + 1.5, Math.max(0, (bw - 3) * u.hp / u.maxHp), bh - 3);
   g.lineWidth = 2; g.strokeStyle = INK; g.strokeRect(p.px - bw / 2, by, bw, bh);
+  }
   if (u.frozenT > 0) { g.fillStyle = 'rgba(78,168,232,.45)'; g.beginPath(); g.arc(p.px, p.py - size * 0.45, size * 0.45, 0, Math.PI * 2); g.fill(); }
 }

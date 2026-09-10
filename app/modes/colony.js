@@ -9,6 +9,7 @@ import { speciesMods, mult, speciesVisual } from '../core/genome.js';
 import { spend, canAfford, progressContract } from '../core/progress.js';
 import { h, fmt, btn, panel, bar, toast, modal } from '../core/ui.js';
 import { drawBuilding as drawBuildingArt } from '../render/buildings.js';
+import { whenPaintedReady } from '../render/painted.js';
 import * as audio from '../core/audio.js';
 import { createColonyWorld } from '../render/colony-world.js';
 import { ensureSettlement, updateSettlement } from '../core/settlement.js';
@@ -363,7 +364,9 @@ function buildingPreview(shape, level, label) {
   const cv = h('canvas', { width: 400, height: 240, role: 'img', 'aria-label': label,
     style: { width: '200px', height: '120px', display: 'block', margin: '0 auto 12px' } });
   const c = cv.getContext('2d'); c.scale(2, 2);
-  drawBuildingArt(c, { x: 100, y: 107, s: 44, shape, level, badge: false, palette: stage().palette, aquatic: isAquatic(), t: 1.2 });
+  const st=stage(),aquatic=isAquatic();
+  const draw=()=>{c.clearRect(0,0,200,120);drawBuildingArt(c, { stage: st.n, x: 100, y: 107, s: 44, shape, level, badge: false, palette: st.palette, aquatic, t: 1.2 });};
+  draw();whenPaintedReady('buildings',st.n).then(ready=>{if(ready&&cv.isConnected)draw();});
   return cv;
 }
 

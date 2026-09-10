@@ -1,3 +1,4 @@
+import { drawPaintedBuilding } from './painted.js';
 // Architecture de la Lignée : la coquille devient contrefort, le noyau devient porte.
 // Toutes les formes restent distinctes sous l'eau. Pas de cloche commune masquant le bâtiment.
 import { INK, groundShade, shade } from './style.js';
@@ -117,6 +118,7 @@ function monument(c, shape, M, t) {
 }
 
 export function drawBuilding(ctx, opts = {}) {
+  if (opts.stage && drawPaintedBuilding(ctx, opts)) return;
   const { x = 0, y = 0, s = 25, shape = 'core', level = 0, busy = false, t = 0, aquatic = false, badge = true,
     palette = { tint: '#3FB8C9', ground: '#1B3A4F' } } = opts;
   const M = material(palette.tint);

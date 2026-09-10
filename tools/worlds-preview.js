@@ -1,3 +1,4 @@
+import {assignTargets} from '../app/core/squads.js';
 import { config, loadConfig, stageOf } from '../app/core/config.js';
 import { defaultState, migrate } from '../app/core/state.js';
 import { resetSettlement } from '../app/core/settlement.js';
@@ -28,16 +29,16 @@ async function checks(){let passed=0;const errors=[];const assert=(v,t)=>{if(v)p
 $('checks').onclick=checks;checks();
 let units=[],id=0,time=0,previous=0,paused=false,cd=0,rally=0;
 const c=config.battle.tactics,v=config.battle.view,cv=$('combat'),g=cv.getContext('2d'),W=390,H=620;
-function add(side,x,role='melee'){const a={melee:'brute',ranged:'tireur',tank:'tank',support:'soigneur'}[role];units.push({side,x,role,arch:a,foeN:++id,hp:100,maxHp:100,sizeMult:1,speed:45,range:role==='ranged'?230:role==='support'?200:28,dead:false});T.placeUnits(units,c);}
+function add(side,x,role='melee'){const a={melee:'brute',ranged:'tireur',tank:'tank',support:'soigneur'}[role];units.push({side,x,role,arch:a,foeN:++id,hp:100,maxHp:100,sizeMult:1,speed:75,range:role==='ranged'?230:role==='support'?200:28,dead:false});T.placeUnits(units,c);}
 function reset(){units=[];time=0;cd=0;rally=0;for(let i=0;i<4;i++){add('p',330-i*65,i===3?'ranged':'melee');add('e',850+i*65,i===3?'ranged':'melee');}}
-reset();$('forces').onclick=()=>{for(let i=0;i<3;i++)add('p',160-i*35,i===2?'tank':'melee');};$('reset').onclick=reset;
+reset();$('mass').onclick=()=>{units=[];for(const side of ['p','e'])for(let i=0;i<60;i++){add(side,side==='p'?150+Math.floor(i/9)*49:1050-Math.floor(i/9)*49,i%9===0?'ranged':'melee');units.at(-1).y=[0,1,-1,2,-2,3,-3,4,-4][i%9]*48;}};$('forces').onclick=()=>{for(let i=0;i<3;i++)add('p',160-i*35,i===2?'tank':'melee');};$('reset').onclick=reset;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Reprendre':'Pause';};$('retreat').onclick=()=>{if(cd>0)return;cd=30;rally=10;T.beginRetreat(units,'p',60,c);};
-function project(u){const t=u.x/1200,scale=.78+.38*t,row=(u.y||0)/c.rowStep,dx=W*.66,dy=H*.42,len=Math.hypot(dx,dy);return {x:W*.17+dx*t+dy/len*row*v.row_spacing*W*.085*scale,y:H*.3+dy*t-dx/len*row*v.row_spacing*W*.085*scale,scale};}
+function project(u){const t=u.x/1200,scale=.78+.38*t,row=(u.y||0)/c.rowStep,dx=W*.66,dy=H*.42,len=Math.hypot(dx,dy);return {x:W*.17+dx*t+dy/len*row*v.row_spacing*W*v.unit_pct*scale,y:H*.3+dy*t-dx/len*row*v.row_spacing*W*v.unit_pct*scale,scale};}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.04,(now-previous)/1000||0);previous=now;
- if(!paused){time+=dt;cd=Math.max(0,cd-dt);rally=Math.max(0,rally-dt);for(const u of units){u.retreating=u.side==='p'&&rally>0;T.tacticalMove(u,units,dt,u.speed,c,{home:u.side==='p'?60:1140,laneLen:1200,retreat:u.retreating});}T.applyPressure(units,c,dt,1200);T.resolveFormation(units,c,1200);}
+ if(!paused){time+=dt;cd=Math.max(0,cd-dt);rally=Math.max(0,rally-dt);assignTargets(units,dt,config.battle.squads);for(const u of units){u.retreating=u.side==='p'&&rally>0;T.tacticalMove(u,units,dt,u.speed,c,{home:u.side==='p'?60:1140,laneLen:1200,retreat:u.retreating,squads:config.battle.squads});}T.applyPressure(units,c,dt,1200);T.resolveFormation(units,c,1200);}
  const st=stageOf(s.species.stage);g.setTransform(2,0,0,2,0,0);drawEnvironment(g,'battle',st,W,H,time);drawBattleTrack(g,W,H,v,st.n);
- for(const x of [60,1140]){const p=project({x});drawBuilding(g,{x:p.x,y:p.y,s:W*.085*p.scale,shape:'core',palette:{...st.palette,tint:x===60?st.palette.tint:'#B87361'},aquatic:st.n<=2,badge:false});}
- units.map(u=>({u,p:project(u)})).sort((a,b)=>a.p.y-b.p.y).forEach(({u,p})=>{drawCreature(g,visual(),{x:p.x,y:p.y,size:W*.085*p.scale,t:time,tint:u.side==='p'?st.palette.tint:'#B87361',facing:(u.side==='p'?1:-1)*(u.retreating?-1:1),pose:u.pose,archetype:u.arch,role:u.role});g.fillStyle=u.side==='p'?'#74D6CD':'#E59173';g.fillRect(p.x-9,p.y-W*.085*p.scale,18,2);});
+ for(const x of [60,1140]){const p=project({x});drawBuilding(g,{stage:st.n,x:p.x,y:p.y,s:W*v.unit_pct*p.scale,shape:'core',palette:{...st.palette,tint:x===60?st.palette.tint:'#B87361'},aquatic:st.n<=2,badge:false});}
+ units.map(u=>({u,p:project(u)})).sort((a,b)=>a.p.y-b.p.y).forEach(({u,p})=>{drawCreature(g,{...visual(),faction:u.side==='e'?'enemy':null},{painted:true,x:p.x,y:p.y,size:W*v.unit_pct*p.scale,t:time,tint:u.side==='p'?st.palette.tint:'#B87361',facing:(u.side==='p'?1:-1)*(u.retreating?-1:1),pose:u.pose,archetype:u.arch,role:u.role});g.fillStyle=u.side==='p'?'#74D6CD':'#E59173';g.beginPath();g.ellipse(p.x,p.y,4,1.5,0,0,Math.PI*2);g.fill();});
  $('retreat').disabled=cd>0;$('retreat').textContent=cd>0?'Retraite · '+Math.ceil(cd)+' s':'Retraite';$('combat-status').textContent='Simulation de placement sans dégâts · '+units.filter(u=>u.side==='p').length+' alliés / '+units.filter(u=>u.side==='e').length+' adversaires';
 }
 requestAnimationFrame(frame);

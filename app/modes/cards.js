@@ -1,3 +1,4 @@
+import { squadSize } from '../core/squads.js';
 // Les Cartes — collection, deck de 8, tirage de packs (genes), editions, verrou des doublons, XP de combat.
 import { config, stageOf } from '../core/config.js';
 import { state, save } from '../core/state.js';
@@ -31,6 +32,7 @@ function drawCard(id, opts = {}) {
   const el = h('div', { class: `gcard rar-${def.rarity}${def.kind === 'instinct' ? ' instinct' : ''}${ed !== 'none' ? ' edition-' + ed : ''}${!usable(id) && !opts.reveal ? ' locked' : ''}${inDeck && opts.deckMark ? ' in-deck' : ''}`, onClick: opts.onClick },
     def.kind === 'unit' ? cv : h('div', { style: { fontSize: '44px', height: '72px', display: 'flex', alignItems: 'center' } }, def.icon || '✦'),
     h('div', { class: 'gc-name' }, def.name),
+    def.kind === 'unit' ? h('div', { class: 'gc-squad' }, `Escouade · ${squadSize(def.archetype, cardLevel(id) + 1, config.battle.squads)} membres`) : null,
     cardLevel(id) > 0 ? h('div', { class: 'gc-lvl' }, `niv. ${cardLevel(id) + 1}${cardXpTier(id) ? ' · ★' + cardXpTier(id) : ''}`) : (cardXpTier(id) ? h('div', { class: 'gc-lvl' }, '★' + cardXpTier(id)) : null),
     col ? h('div', { class: 'gc-count' }, `×${col.count}`) : null,
     E?.label ? h('div', { class: 'small', style: { color: 'var(--gold)', fontWeight: 900 } }, E.label) : null);
@@ -62,11 +64,14 @@ function render() {
   }
 }
 function detail(id) {
-  const def = cardDef(id); const col = state.cards.collection[id]; const arch = def.archetype ? config.battle.archetypes[def.archetype] : null;
+  const def = cardDef(id); const col = state.cards.collection[id]; const base = def.archetype ? config.battle.archetypes[def.archetype] : null;
+  const scale = base ? config.battle.squads.statScale[base.role] : 1;
+  const arch = base ? { ...base, hp: Math.round(base.hp*scale), dmg: Math.round((base.dmg||0)*scale), heal: Math.round((base.heal||0)*scale), speed: Math.round(base.speed*config.battle.squads.movementSpeed), atk_interval: +(base.atk_interval*config.battle.squads.attackInterval).toFixed(2) } : null;
   const xp = state.cards.xp[id] || 0; const tiers = config.cards.xp_tiers;
   const m = modal(h('div', {}, h('h2', { class: 'modal-title', style: { color: config.cards.rarity[def.rarity].color } }, def.name), h('p', { class: 'modal-text' }, def.desc),
-    arch ? h('p', { class: 'small muted' }, `${U().role_icons[arch.role]} ${U().role_labels[arch.role]} · ${U().stat_icons.hp} ${arch.hp} · ${U().stat_icons.dmg} ${arch.dmg} / ${arch.atk_interval}s · ${U().stat_icons.range} ${arch.range} · ${U().stat_icons.speed} ${arch.speed}`) : null,
+    arch ? h('p', { class: 'small muted' }, `Base par individu, hors génome · ${U().role_icons[arch.role]} ${U().role_labels[arch.role]} · ${U().stat_icons.hp} ${arch.hp} · ${U().stat_icons.dmg} ${arch.dmg} / ${arch.atk_interval}s · ${U().stat_icons.range} ${arch.range} · ${U().stat_icons.speed} ${arch.speed}`) : null,
     h('p', { class: 'small' }, col ? `×${col.count} · ${usable(id) ? 'jouable · niveau ' + (cardLevel(id) + 1) : 'encore 1 exemplaire pour la jouer'}` : 'Pas encore obtenue'),
+    arch ? h('p', { class: 'small' }, `Escouade de ${squadSize(def.archetype, cardLevel(id) + 1, config.battle.squads)} membres. Un renfort supplémentaire aux niveaux 3, 6 et 9. Chaque individu choisit sa cible.`) : null,
     // Ce que le niveau apporte concretement, et ce que rapporterait le prochain doublon.
     arch ? h('p', { class: 'small', style: { borderLeft: '3px solid var(--gold)', paddingLeft: '8px' } },
       cardLevel(id) > 0

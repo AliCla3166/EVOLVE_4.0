@@ -1,0 +1,104 @@
+[
+  {
+    "key": "units-01",
+    "kind": "units",
+    "stage": 1,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-251946fd-9bc6-43f9-a001-fc71328ba58f.png"
+  },
+  {
+    "key": "buildings-01",
+    "kind": "buildings",
+    "stage": 1,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-db1bcb4e-5db1-46dc-8681-1c8268e5ca5d.png"
+  },
+  {
+    "key": "units-02",
+    "kind": "units",
+    "stage": 2,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-16a2c170-8683-4b7b-aff2-b90382b5ad1e.png"
+  },
+  {
+    "key": "buildings-02",
+    "kind": "buildings",
+    "stage": 2,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-69b0b1f8-bb1f-4277-a2c8-71c0da797b7e.png"
+  },
+  {
+    "key": "units-03",
+    "kind": "units",
+    "stage": 3,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-2284ae44-c39f-4e1f-b800-d92c075e304a.png"
+  },
+  {
+    "key": "buildings-03",
+    "kind": "buildings",
+    "stage": 3,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-53ef2f5c-02c6-46c0-a752-2ccdf3ede860.png"
+  },
+  {
+    "key": "units-04",
+    "kind": "units",
+    "stage": 4,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-f5ac99c2-70d6-4d8c-aacb-2fa66dfaeb5b.png"
+  },
+  {
+    "key": "buildings-04",
+    "kind": "buildings",
+    "stage": 4,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-94403c2d-3aff-4278-b25f-26f6529322b6.png"
+  },
+  {
+    "key": "units-05",
+    "kind": "units",
+    "stage": 5,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-0f99218f-1750-4fb8-b218-926a59b46a23.png"
+  },
+  {
+    "key": "buildings-05",
+    "kind": "buildings",
+    "stage": 5,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-7c19bfcd-3890-4fdb-8948-b7174cdbaac1.png"
+  },
+  {
+    "key": "units-06",
+    "kind": "units",
+    "stage": 6,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-3076053c-edec-4de7-9d66-40eccaa71c54.png"
+  },
+  {
+    "key": "buildings-06",
+    "kind": "buildings",
+    "stage": 6,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-3b40cd5c-ac34-4725-8f0d-2c30703f90fd.png"
+  },
+  {
+    "key": "units-07",
+    "kind": "units",
+    "stage": 7,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-ebbc01f3-0b5a-43d7-a221-980360344898.png"
+  },
+  {
+    "key": "buildings-07",
+    "kind": "buildings",
+    "stage": 7,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-b96933c6-f7d2-4d77-83af-7f96359e6fc0.png"
+  },
+  {
+    "key": "units-08",
+    "kind": "units",
+    "stage": 8,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-4c72eb50-7f54-4116-bc7f-6c54877d7879.png"
+  },
+  {
+    "key": "buildings-08",
+    "kind": "buildings",
+    "stage": 8,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-89ee1e30-0661-4458-9036-4b51f215370a.png"
+  },
+  {
+    "key": "units-09",
+    "kind": "units",
+    "stage": 9,
+    "source": "C:/Users/User/.codex/generated_images/01a08096-e687-7743-8371-ea3310480447/exec-69c3fcad-877b-4f17-bb4f-6c0ddcad58d0.png"
+  }
+]

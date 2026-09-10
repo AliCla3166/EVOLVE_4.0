@@ -1,0 +1,8 @@
+{
+  "key": "buildings-10",
+  "kind": "buildings",
+  "stage": 10,
+  "theme": "Divinity: dark gold and ivory cosmic sanctuaries, living radiolarian bone, restrained champagne light",
+  "prompt": "Create a production sprite atlas for EVOLVE. SQUARE, 4 columns and 4 rows, exactly SIXTEEN structures. Row1 core sanctuary, nutrient harvester, water basin, mineral quarry. Row2 ribbed ossuary, spiral genetic nursery, garden patch, food silo. Row3 barracks, forge, observatory sanctuary, watchtower. Row4 defensive gate, small dwelling, medium dwelling, clustered family house. Theme: Divinity: dark gold and ivory cosmic sanctuaries, living radiolarian bone, restrained champagne light. Exquisite hand-painted strategy miniatures, sculptural volume, tactile detailed bone and mineral materials, crisp dark silhouette outlines and subtle interior shading, warm upper-left light, amber split nucleus emblems, no licensed characters. THREE QUARTER isometric viewpoint. TRUE TRANSPARENT RGBA background; NO painted checkerboard, no ground scenery, no labels, no text, no tiles, no panels. Each subject stays entirely inside its cell, centered, occupying only 65 percent cell width and 70 percent cell height, with LARGE TRANSPARENT GUTTERS. Match sophisticated naturalist fantasy painted environments rather than flat vector art. Preserve exact grid ordering and count.",
+  "source": "C:\\Users\\User\\.codex\\generated_images\\01a08096-e687-7743-8371-ea3310480447\\exec-3e6b8295-8345-4071-82e5-7ac9ab19321c.png"
+}

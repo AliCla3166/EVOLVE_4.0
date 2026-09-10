@@ -1,7 +1,8 @@
 // PowerShell : Get-Content tools/tactics-check.cjs -Raw | node
 const fs=require('fs'),assert=require('assert/strict');
 (async()=>{
- const T=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('app/core/tactics.js','utf8')).toString('base64'));
+ const squadURL='data:text/javascript;base64,'+Buffer.from(fs.readFileSync('app/core/squads.js','utf8')).toString('base64');
+ const T=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('app/core/tactics.js','utf8').replace("'./squads.js'",JSON.stringify(squadURL))).toString('base64'));
  const c=JSON.parse(fs.readFileSync('data/battle.json','utf8')).tactics;
  let id=0,checks=0;
  const unit=(side,x,role='melee',y=0)=>({side,x,y,role,hp:100,maxHp:100,range:role==='ranged'?230:28,sizeMult:1,speed:45,foeN:++id,dead:false});
@@ -24,7 +25,7 @@ const fs=require('fs'),assert=require('assert/strict');
   units=[unit(side,600),unit(side,600-d*80,'ranged')];T.beginRetreat(units,side,side==='p'?60:1140,c);simulate(units,10,true);
   ok(units.every(u=>Math.abs(u.x-(side==='p'?60:1140))<260),side+' retreat reaches home');
  }
- units=[unit('p',500),unit('p',420),unit('p',420,'tank',80),unit('e',600)];const x=units[3].x;for(let i=0;i<60;i++)T.applyPressure(units,c,1/60,1200);
+ units=[unit('p',500),unit('p',420),unit('p',460,'tank',48),unit('e',560)];const x=units[3].x;for(let i=0;i<60;i++)T.applyPressure(units,c,1/60,1200);
  ok(units[3].x>x+10,'Numerical melee superiority pushes');
  units=[unit('p',500),unit('e',600)];const same=units[0].x;T.applyPressure(units,c,1,1200);ok(units[0].x===same,'Equal forces no pressure');
  const S=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('app/core/settlement.js','utf8')).toString('base64'));
@@ -34,7 +35,7 @@ const fs=require('fs'),assert=require('assert/strict');
  ok(S.updateSettlement(state,world,stages).homes===144,'Completed settlement');state.colony.buildings.a.level=1;
  ok(S.updateSettlement(state,world,stages).homes===144,'Visual growth cannot shrink');state.species.stage=2;
  ok(S.updateSettlement(state,world,stages).homes===3,'New age resets settlement');ok(state.colony.buildings.a.level===1,'Economic structure retained');
- units=[unit('e',600),unit('e',700),...Array.from({length:4},(_,i)=>unit('p',500-i*60))];units[0].hp=units[1].hp=40;
+ units=[unit('e',560),unit('e',660),...Array.from({length:4},(_,i)=>unit('p',500-i*60))];units[0].hp=units[1].hp=40;
  ok(T.shouldRetreat(units,'e',1140,c),'AI regroups when wounded and outnumbered');
  units[0].hp=units[1].hp=100;ok(!T.shouldRetreat(units,'e',1140,c),'Healthy AI does not retreat needlessly');
  units=[unit('p',1050,'tank')];units[0].speed=15;T.beginRetreat(units,'p',60,c);simulate(units,10,true);ok(units[0].x<300,'Slow tank reaches rally within retreat duration');

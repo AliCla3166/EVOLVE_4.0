@@ -202,6 +202,9 @@ textarea.mono { font-family: ui-monospace, monospace; font-size: 12px; font-weig
 .hand-card .hc-lvl { position: absolute; top: 44px; right: 4px; background: var(--gold); color: #3A2600; border: 2px solid var(--ink); border-radius: 6px; font-family: var(--display); font-size: 10px; padding: 0 4px; }
 .hand-card .hc-info { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); background: var(--slate); color: var(--chalk); font-family: var(--display); font-size: 12px; line-height: 1; cursor: pointer; padding: 0; }
 .hand-card.unaffordable { filter: grayscale(.8) brightness(.7); }
+.hand-card .hc-squad { font-size: 9px; line-height: 1.2; color: var(--gold); font-weight: 900; margin-bottom: 3px; }
+.hand-card.field-full { opacity: .55; }
+.gc-squad { font-size: 11px; color: var(--gold); font-weight: 800; text-align: center; margin: 4px 0; }
 .hand-card.instinct { background: var(--purple-d); }
 .hand-card:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
 /* Fiche de carte : posee par-dessus, mais la bataille continue derriere. */

@@ -1,4 +1,5 @@
 // Positions, collisions et consignes identiques pour les deux camps.
+import { cohesion } from './squads.js';
 const dir=u=>u.side==='p'?1:-1;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const isFront=u=>u.role==='melee'||u.role==='tank';
@@ -10,20 +11,21 @@ export function placeUnits(units,c){
     if(u.dead||Number.isFinite(u.y))continue;
     const peers=units.filter(v=>v!==u&&!v.dead&&v.side===u.side&&Number.isFinite(v.y));
     const cost=r=>peers.reduce((n,v)=>n+Math.max(0,c.spawnWindow-Math.abs(u.x-v.x))*Math.max(0,1-Math.abs(r*c.rowStep-v.y)/c.rowStep),0);
-    const row=[0,1,-1,2,-2].reduce((a,b)=>cost(b)<cost(a)?b:a);
+    const row=[0,1,-1,2,-2,3,-3,4,-4].slice(0,c.rows||5).reduce((a,b)=>cost(b)<cost(a)?b:a);
     u.y=row*c.rowStep;
   }
 }
 export function beginRetreat(units,side,home,c){
   const list=units.filter(u=>!u.dead&&u.side===side).sort((a,b)=>(isFront(b)-isFront(a))||a.foeN-b.foeN);
-  list.forEach((u,i)=>{u.rally={x:home+dir(u)*(c.rallyOffset+Math.max(0,2-Math.floor(i/5))*c.rowStep),y:[0,1,-1,2,-2][i%5]*c.rowStep};});
+  const rows=c.rows||5,ranks=Math.ceil(list.length/rows),step=c.radius*2+c.separation;
+  list.forEach((u,i)=>{u.rally={x:home+dir(u)*(c.rallyOffset+(ranks-1-Math.floor(i/rows))*step),y:[0,1,-1,2,-2,3,-3,4,-4][i%rows]*c.rowStep};});
 }
 export function shouldRetreat(units,side,home,c){
   const a=units.filter(u=>!u.dead&&u.side===side),e=units.filter(u=>!u.dead&&u.side!==side);
   if(a.length<c.aiMinUnits||e.length<a.length*c.aiOutnumbered)return false;
   return a.reduce((n,u)=>n+u.hp/u.maxHp,0)/a.length<c.aiHealth&&a.some(u=>Math.abs(u.x-home)>c.aiHomeDistance&&e.some(v=>inReach(u,v,c)));
 }
-export function tacticalMove(u,units,dt,speed,c,{home,laneLen,retreat=false,hold=null,baseInReach=false}={}){
+export function tacticalMove(u,units,dt,speed,c,{home,laneLen,retreat=false,hold=null,baseInReach=false,squads=null}={}){
   const step=speed*dt,d=dir(u),allies=units.filter(v=>v!==u&&!v.dead&&v.side===u.side),foes=units.filter(v=>!v.dead&&v.side!==u.side);
   const move=(x,y,mult=1)=>{
     const dx=x-u.x,dy=y-u.y,len=Math.hypot(dx,dy),amount=Math.min(len,step*mult);
@@ -31,7 +33,7 @@ export function tacticalMove(u,units,dt,speed,c,{home,laneLen,retreat=false,hold
     u.pose='idle';return false;
   };
   if(retreat){if(!u.rally)beginRetreat(units,u.side,home,c);move(u.rally.x,u.rally.y,Math.max(c.retreatSpeed,c.retreatMinSpeed/Math.max(1,speed)));return true;}
-  const foe=foes.reduce((a,b)=>!a||distance(u,b)<distance(u,a)?b:a,null);
+  const foe=foes.find(v=>v.foeN===u.targetId)||foes.reduce((a,b)=>!a||distance(u,b)<distance(u,a)?b:a,null);
   if(!isFront(u)){
     const leaders=allies.filter(v=>isFront(v)&&d*(v.x-u.x)>-c.backlineGap);
     const leader=leaders.sort((a,b)=>d*(b.x-a.x))[0]||allies.filter(v=>d*(v.x-u.x)>c.radius).sort((a,b)=>d*(b.x-a.x))[0];
@@ -46,12 +48,15 @@ export function tacticalMove(u,units,dt,speed,c,{home,laneLen,retreat=false,hold
       const x=u.x-d*step;if(d*(x-home)>c.radius)return move(x,u.y);
     }
   }
-  if(foe&&inReach(u,foe,c))return false;
+  if(foes.some(v=>inReach(u,v,c)))return false;
   if(baseInReach)return false;
   if(u.role==='support'&&allies.some(v=>v.hp<v.maxHp&&distance(u,v)<=u.range))return false;
-  let x=u.x+d*step;if(hold!==null&&d*(x-hold)>0)x=hold;
-  const y=isFront(u)&&foe&&Math.abs(foe.x-u.x)<c.approachDistance?u.y+clamp(foe.y-u.y,-step*.6,step*.6):u.y;
-  return move(x,y);
+  const group=squads?cohesion(u,units,squads):{y:u.y,speed:1};
+  let x=u.x+d*step*group.speed;if(hold!==null&&d*(x-hold)>0)x=hold;
+  const near=isFront(u)&&foe&&Math.abs(foe.x-u.x)<c.approachDistance;
+  const targetY=near?foe.y:group.y;
+  const y=u.y+clamp(targetY-u.y,-step*.6,step*.6);
+  return move(x,y,group.speed);
 }
 export function resolveFormation(units,c,laneLen){
   const live=units.filter(u=>!u.dead);
@@ -64,10 +69,7 @@ export function resolveFormation(units,c,laneLen){
     if(a.side===b.side&&Math.abs(dx)<.001){const shift=(a.foeN<b.foeN?-dir(a):dir(a))*.5;a.x-=shift;b.x+=shift;dx=b.x-a.x;len=Math.hypot(dx,dy);}
     if(len<.001){dx=a.side===b.side?0:dir(a);dy=a.side===b.side?1:0;len=1;}
     const overlap=gap-len;
-    if(a.side!==b.side&&Math.abs(dy)<gap*.95){
-      const want=Math.sqrt(Math.max(0,gap*gap-dy*dy)),sign=dir(a),penetration=want-sign*dx;
-      if(penetration>0){a.x-=sign*penetration*.5;b.x+=sign*penetration*.5;}
-    }else{a.x-=dx/len*overlap*.5;b.x+=dx/len*overlap*.5;a.y-=dy/len*overlap*.5;b.y+=dy/len*overlap*.5;}
+    a.x-=dx/len*overlap*.5;b.x+=dx/len*overlap*.5;a.y-=dy/len*overlap*.5;b.y+=dy/len*overlap*.5;
     for(const u of [a,b]){u.x=clamp(u.x,0,laneLen);u.y=clamp(u.y,-c.halfWidth,c.halfWidth);}
   }
   for(const u of live)u._row=u.y/c.rowStep;
@@ -75,9 +77,9 @@ export function resolveFormation(units,c,laneLen){
 export function applyPressure(units,c,dt,laneLen){
   const live=units.filter(u=>!u.dead&&!u.retreating),p=live.filter(u=>u.side==='p'&&isFront(u)),e=live.filter(u=>u.side==='e'&&isFront(u));
   if(!p.length||!e.length)return;
-  const fp=Math.max(...p.map(u=>u.x)),fe=Math.min(...e.map(u=>u.x));
-  if(!p.some(u=>e.some(v=>inReach(u,v,c))))return;
-  const near=live.filter(u=>u.x>=fp-c.pressureWindow&&u.x<=fe+c.pressureWindow&&isFront(u));
+  const contacts=p.filter(u=>e.some(v=>inReach(u,v,c)));
+  if(!contacts.length)return;
+  const near=live.filter(u=>isFront(u)&&contacts.some(v=>distance(u,v)<=c.pressureWindow));
   const np=near.filter(u=>u.side==='p').length,ne=near.length-np;
   const push=clamp((np-ne)/Math.max(1,Math.min(np,ne)),-1,1)*c.pushSpeed*dt;
   for(const u of near)u.x=clamp(u.x+push,0,laneLen);

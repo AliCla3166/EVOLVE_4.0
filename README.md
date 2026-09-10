@@ -2,6 +2,8 @@
 
 Jeu mobile personnel de suivi d'habitudes (PWA, vanilla JS, aucun build). Voir `docs/evolve-4.0-game-design.md`.
 
+Version 0.10.0 : escouades autonomes et 220 miniatures peintes. Voir [les règles et la direction artistique](docs/escouades-et-miniatures.md). Atelier visuel : `tools/miniatures.html` ; colonie et placement de 120 combattants : `tools/worlds.html`.
+
 ## Lancer en local
 `python3 -m http.server 8765` puis ouvrir http://localhost:8765/
 

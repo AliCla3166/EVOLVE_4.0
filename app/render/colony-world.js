@@ -1,3 +1,4 @@
+import { drawPaintedBuilding } from './painted.js';
 import { config, stageOf } from '../core/config.js';
 import { updateSettlement } from '../core/settlement.js';
 import { h } from '../core/ui.js';
@@ -102,10 +103,10 @@ export function createColonyWorld(host,{getState,getVisual,onBuilding}) {
     // Les sentiers appartiennent à la colonie et relient les bâtiments réellement présents.
     g.save();g.strokeStyle=environmentTheme(st.n).road;g.globalAlpha=.24;g.lineWidth=7;g.lineCap='round';
     for(const site of sites.slice(1)){if(!s.colony.buildings[site.id]?.level)continue;g.beginPath();g.moveTo(720,548);g.quadraticCurveTo((site.x+720)/2,site.y,site.x,site.y);g.stroke();}g.restore();
-    const items=lots.slice(0,settlement.homes).map(p=>({y:p.y,draw:()=>{const sprite=homeSprite(st,p.variant),size=p.size*2.2;g.drawImage(sprite,p.x-size/2,p.y-size*.8,size,size);}}));
+    const items=lots.slice(0,settlement.homes).map(p=>({y:p.y,draw:()=>{if (!drawPaintedBuilding(g,{stage:st.n,shape:'home'+p.variant%3,x:p.x,y:p.y,s:p.size,badge:false})) { const sprite=homeSprite(st,p.variant),size=p.size*2.2;g.drawImage(sprite,p.x-size/2,p.y-size*.8,size,size); }}}));
     for(const site of sites){const level=site.core?s.colony.coreLevel:s.colony.buildings[site.id]?.level||0,busy=s.colony.queue.some(q=>q.id===site.id);
       items.push({y:site.y,draw:()=>{
-        if(level||busy)drawBuilding(g,{x:site.x,y:site.y,s:site.core?60:38,shape:site.shape,level:Math.max(1,level),busy,t,palette:st.palette,aquatic:st.n<=2,badge:full});
+        if(level||busy)drawBuilding(g,{stage:st.n,x:site.x,y:site.y,s:site.core?60:38,shape:site.shape,level:Math.max(1,level),busy,t,palette:st.palette,aquatic:st.n<=2,badge:full});
         else{g.save();g.strokeStyle=st.palette.tint;g.globalAlpha=.4;g.lineWidth=2;g.setLineDash([4,7]);g.beginPath();g.ellipse(site.x,site.y,24,11,0,0,Math.PI*2);g.stroke();g.restore();}
       }});
     }
@@ -113,7 +114,7 @@ export function createColonyWorld(host,{getState,getVisual,onBuilding}) {
     for(let i=0;i<citizens;i++){
       const a=occupied[(i*7)%occupied.length],b=occupied[(i*13+1)%occupied.length],phase=(t*.032+i*.371)%2,k=phase<=1?phase:2-phase;
       const x=a.x+(b.x-a.x)*k,y=a.y+(b.y-a.y)*k+14;
-      items.push({y,draw:()=>drawCreature(g,visual,{x,y,size:19+(i%3)*2,t:t+i,tint:st.palette.tint,pose:'walk',facing:(b.x-a.x)*(phase<=1?1:-1)>=0?1:-1,archetype:'eclaireur',role:'melee'})});
+      items.push({y,draw:()=>drawCreature(g,visual,{painted:true,x,y,size:19+(i%3)*2,t:t+i,tint:st.palette.tint,pose:'walk',facing:(b.x-a.x)*(phase<=1?1:-1)>=0?1:-1,archetype:'eclaireur',role:'melee'})});
     }
     items.sort((a,b)=>a.y-b.y).forEach(item=>item.draw());
     if(selected){g.strokeStyle=st.palette.tint;g.lineWidth=2/scale;g.beginPath();g.ellipse(selected.x,selected.y,27,13,0,0,Math.PI*2);g.stroke();}
