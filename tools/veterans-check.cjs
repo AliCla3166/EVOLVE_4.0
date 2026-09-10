@@ -1,0 +1,7 @@
+const fs=require('fs'),assert=require('assert/strict');
+(async()=>{const V=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('app/core/veterancy.js','utf8')).toString('base64')),b=JSON.parse(fs.readFileSync('data/battle.json')),c=b.veterancy;let count=0;
+const ok=(x,m)=>{assert.ok(x,m);count++;},make=()=>({sizeMult:1,interval:1,cd:.5,hp:40,maxHp:100});
+for(const side of ['p','e']){const u={...make(),side};ok(!V.updateVeterancy(u,11.9,c),'no early promotion');ok(V.updateVeterancy(u,.1,c)&&u.veteranRank===1,'first rank');ok(u.hp===40&&u.maxHp===100,'no promotion healing');ok(u.sizeMult===1.08&&u.interval<1,'growth and attack speed');V.updateVeterancy(u,12,c);ok(u.veteranRank===2,'second rank');V.updateVeterancy(u,16,c);ok(u.veteranRank===3&&u.sizeMult===1.24,'final rank');const size=u.sizeMult;V.updateVeterancy(u,100,c);ok(u.sizeMult===size&&u.veteranRank===3,'bonuses do not compound');ok(Math.abs(u.cd/u.interval-.5)<.00001,'cooldown fraction preserved');ok(V.receivedDamage(u,10,c)<16.5,'veteran resistance');u.dead=true;const age=u.fieldAge;V.updateVeterancy(u,100,c);ok(u.fieldAge===age,'dead units gain no ranks');}
+ok(V.receivedDamage(make(),10,c)===16.5,'65 percent higher incoming damage');ok(!make().veteranRank,'fresh unit has no inherited rank');
+for(const [type,range] of [['tour',440],['piege',150],['soin',360]])ok(b.turrets.types[type].range===range,type+' range');console.log(count+' checks passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});

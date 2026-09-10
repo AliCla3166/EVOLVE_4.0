@@ -1,3 +1,6 @@
+import {drawVeteranGrade} from '../render/veterancy.js';
+import {updateVeterancy,veteranBonus,receivedDamage} from '../core/veterancy.js';
+import {whenPaintedReady} from '../render/painted.js';
 import { squadSize, collectionLevel, deploySquad, assignTargets, ballisticPoint } from '../core/squads.js';
 import { drawEnvironment, drawAtmosphere, drawBattleTrack } from '../render/environments.js';
 import { placeUnits, inReach, distance, tacticalMove, resolveFormation, applyPressure, beginRetreat, shouldRetreat } from '../core/tactics.js';
@@ -203,7 +206,8 @@ function renderTurrets() {
       for (const [id, t] of Object.entries(types)) {
         if (id.startsWith('_')) continue;
         const c = turretCost(id, 0);
-        row.append(btn(`${t.icon} ${c}🧱`, {
+        row.append(btn(`${t.icon} ${t.label} · ${c}🧱`, {
+          title: `Portée ${t.range}`,
           kind: 'slate', size: 'sm',
           onClick: () => {
             if (!spend({ materiaux: c })) { toast('Pas assez de 🧱 Matériaux', 'red'); return; }
@@ -214,10 +218,10 @@ function renderTurrets() {
     } else {
       const t = types[slot.type];
       const c = turretCost(slot.type, slot.level);
-      row.append(h('div', { class: 'm-ico', style: { fontSize: '24px', width: '28px' } }, t.icon));
+      row.append(turretPreview(t));
       row.append(h('div', { class: 'grow' },
         h('div', { style: { fontFamily: 'var(--display)' } }, `${t.label} · niv. ${slot.level}`),
-        h('div', { class: 'small muted' }, t.heal ? `Soin ${Math.round(t.heal * slot.level)} / ${t.interval}s` : `Dégâts ${Math.round(t.dmg * slot.level)} / ${t.interval}s`)));
+        h('div', { class: 'small muted' }, (t.heal ? `Soin ${Math.round(t.heal * slot.level)} / ${t.interval}s` : `Dégâts ${Math.round(t.dmg * slot.level)} / ${t.interval}s`) + ` · Portée ${t.range}`)));
       row.append(btn(`⬆ ${c}🧱`, {
         kind: 'gold', size: 'sm',
         onClick: () => {
@@ -751,6 +755,7 @@ function update(dt) {
   // Unites
   for (const u of B.units) {
     if (u.dead) { u.deadT += dt; continue; }
+    if(updateVeterancy(u,dt,CB().veterancy)) B.floaters.push({x:u.x,row:u._row||0,y:-unitPx(u)*1.5,text:CB().veterancy.grades[u.veteranRank-1].label,color:CB().veterancy.grades[u.veteranRank-1].color,t:0,big:true});
     updateStatus(u, dt);
     if (u.dead) continue;
     if (u.frozenT > 0) { u.pose = 'idle'; continue; }
@@ -816,7 +821,7 @@ function speedOf(u) {
   return s;
 }
 function dmgOf(u) {
-  let d = u.dmg;
+  let d = u.dmg * (1 + veteranBonus(u, CB().veterancy).damage);
   if (u.trait === 'alpha') d *= 1 + u.alphaStacks * CB().traits.alpha.dmg_pct_per_kill / 100;
   if (u.side === 'p') {
     for (const e of B.instincts) {
@@ -910,6 +915,7 @@ function applyOnHit(u, tgt) {
 
 function hurt(u, d, from, crit, silent) {
   if (u.dead || d <= 0) return;
+  d = receivedDamage(u,d,CB().veterancy);
   u.hp -= d; u.flash = 1;
   if (!silent) audio.play('hit');
   if (!silent) B.floaters.push({ x: u.x, row: u._row || 0, y: -unitPx(u) * 1.4, text: String(Math.round(d)), color: crit ? '#FFC24B' : CHALK, t: 0, big: !!crit });
@@ -1351,7 +1357,7 @@ function drawBase(g, base, color, facing) {
 function drawTurrets(g) {
   for (const t of B.turrets) {
     const p = project(t.x, t.row);
-    drawTurret(g, { x: p.px, y: p.py, s: unitRef() * .68 * p.s,
+    drawTurret(g, { stage: B.stage, x: p.px, y: p.py, s: unitRef() * .95 * p.s,
       shape: t.def.shape || (t.def.heal ? 'autel' : 'baliste'), tint: B.st.palette.tint,
       t: B.time, fire: t.fireT || 0, facing: t.aim || 1, level: t.level });
   }
@@ -1380,6 +1386,7 @@ function drawUnit(g, u, p) {
   } catch (e) { /* le rendu ne doit jamais casser la boucle */ }
   g.restore();
   if (dying) return;
+  drawVeteranGrade(g,u,p,size,CB().veterancy);
   // Les unités intactes gardent seulement leur repère au sol, pour lire les corps.
   if (u.hp < u.maxHp || u.boss) {
   const bw = size * 0.8, bh = Math.max(3, 4 * p.s), by = p.py - size * 1.08;
@@ -1389,4 +1396,10 @@ function drawUnit(g, u, p) {
   g.lineWidth = 2; g.strokeStyle = INK; g.strokeRect(p.px - bw / 2, by, bw, bh);
   }
   if (u.frozenT > 0) { g.fillStyle = 'rgba(78,168,232,.45)'; g.beginPath(); g.arc(p.px, p.py - size * 0.45, size * 0.45, 0, Math.PI * 2); g.fill(); }
+}
+
+function turretPreview(def){
+  const cv=h('canvas',{width:120,height:120,'aria-label':def.label,role:'img',style:{width:'60px',height:'60px'}}),g=cv.getContext('2d');g.scale(2,2);
+  const draw=()=>{g.clearRect(0,0,60,60);drawTurret(g,{stage:stageNum(),x:30,y:55,s:23,shape:def.shape,tint:stageDef().palette.tint});};
+  draw();whenPaintedReady('turrets',0).then(ready=>{if(ready&&cv.isConnected)draw();});return cv;
 }

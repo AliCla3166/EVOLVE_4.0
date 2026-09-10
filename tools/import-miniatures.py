@@ -41,5 +41,7 @@ for entry in sources:
     atlases.append({k:entry[k] for k in ('key','kind','stage')} | {'file':file,'width':w,'height':h,'rects':rects})
     print(entry['key'],len(rects),'sprites')
 assert len(atlases) == 20
+existing = json.loads((root/'data/miniatures.json').read_text(encoding='utf8')) if (root/'data/miniatures.json').exists() else {'atlases':[]}
+atlases += [a for a in existing['atlases'] if a['kind'] == 'turrets']
 (root/'data/miniatures.json').write_bytes((json.dumps({'atlases':atlases},indent=2)+'\n').encode('utf8'))
 print('Total:',sum(len(a['rects']) for a in atlases),'sprites;',round(sum(p.stat().st_size for p in out.glob('*.webp'))/1048576,2),'MiB')

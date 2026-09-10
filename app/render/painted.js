@@ -14,6 +14,16 @@ export function paintedRecord(kind,stage){
   return r;
 }
 export function whenPaintedReady(kind,stage){return paintedRecord(kind,stage)?.promise||Promise.resolve(false);}
+export function drawPaintedTurret(c,o){
+  const r=paintedRecord('turrets',0);if(!r?.ready)return false;
+  const index={baliste:0,machoire:1,autel:2}[o.shape]??0,b=r.asset.rects[index],s=o.s||25;
+  const aspect=b[2]/b[3],height=Math.min(s*2.3,s*2.9/aspect),width=height*aspect,fire=o.fire||0;
+  c.save();c.translate(o.x||0,o.y||0);c.scale(index===0?(o.facing||1):1,1);
+  c.translate(index===0?-fire*s*.12:0,0);c.filter=`brightness(${1+fire*.35})`;
+  blit(c,r,index,-width/2,-height,width,height);c.filter='none';
+  if(fire>.1){c.strokeStyle=index===2?'#74D6CD':'#FFC24B';c.globalAlpha*=fire;c.lineWidth=2;c.beginPath();c.ellipse(0,-height*.55,s*(.3+(1-fire)*.8),s*.2,0,0,Math.PI*2);c.stroke();}
+  c.restore();return true;
+}
 function blit(c,r,index,x,y,w,h){
   const b=r.asset.rects[index];if(!b)return;
   c.drawImage(r.image,b[0],b[1],b[2],b[3],x,y,w,h);

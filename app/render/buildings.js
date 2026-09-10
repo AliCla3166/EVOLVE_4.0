@@ -1,4 +1,4 @@
-import { drawPaintedBuilding } from './painted.js';
+import { drawPaintedBuilding, drawPaintedTurret } from './painted.js';
 // Architecture de la Lignée : la coquille devient contrefort, le noyau devient porte.
 // Toutes les formes restent distinctes sous l'eau. Pas de cloche commune masquant le bâtiment.
 import { INK, groundShade, shade } from './style.js';
@@ -150,7 +150,9 @@ export function drawBuilding(ctx, opts = {}) {
   c.restore();
 }
 
-export function drawTurret(ctx, { x, y, s, shape, tint, t = 0, fire = 0, facing = 1, level = 1 }) {
+export function drawTurret(ctx, opts) {
+  if(drawPaintedTurret(ctx,opts))return;
+  const { x, y, s, shape, tint, t = 0, fire = 0, facing = 1, level = 1 }=opts;
   const c = ctx, M = material(tint); c.save(); c.translate(x,y); c.scale(s/35,s/35); plinth(c,M);
   if (shape === 'machoire') {
     for (const side of [-1,1]) {

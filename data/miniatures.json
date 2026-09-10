@@ -1519,6 +1519,34 @@
           475
         ]
       ]
+    },
+    {
+      "key": "turrets",
+      "kind": "turrets",
+      "stage": 0,
+      "file": "assets/miniatures/turrets.webp",
+      "width": 2172,
+      "height": 724,
+      "rects": [
+        [
+          53,
+          20,
+          732,
+          687
+        ],
+        [
+          826,
+          255,
+          544,
+          404
+        ],
+        [
+          1592,
+          14,
+          477,
+          696
+        ]
+      ]
     }
   ]
 }

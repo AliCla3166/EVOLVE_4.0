@@ -275,7 +275,7 @@
         "icon": "🏹",
         "dmg": 12,
         "interval": 1.0,
-        "range": 220,
+        "range": 440,
         "cost_mat": 60,
         "cost_growth": 1.7
       },
@@ -285,7 +285,7 @@
         "icon": "🪤",
         "dmg": 40,
         "interval": 3.0,
-        "range": 60,
+        "range": 150,
         "cost_mat": 45,
         "cost_growth": 1.6
       },
@@ -295,7 +295,7 @@
         "icon": "💚",
         "heal": 5,
         "interval": 1.0,
-        "range": 150,
+        "range": 360,
         "cost_mat": 80,
         "cost_growth": 1.8
       }
@@ -585,5 +585,37 @@
     "arcHeight": 60,
     "flightMin": 0.28,
     "flightMax": 0.8
+  },
+  "veterancy": {
+    "unitDamageTaken": 1.65,
+    "grades": [
+      {
+        "seconds": 12,
+        "label": "Vétéran",
+        "damage": 0.15,
+        "attackSpeed": 0.12,
+        "resistance": 0.08,
+        "size": 0.08,
+        "color": "#D6AE82"
+      },
+      {
+        "seconds": 24,
+        "label": "Élite",
+        "damage": 0.3,
+        "attackSpeed": 0.24,
+        "resistance": 0.15,
+        "size": 0.16,
+        "color": "#C5DCE5"
+      },
+      {
+        "seconds": 40,
+        "label": "Champion",
+        "damage": 0.5,
+        "attackSpeed": 0.4,
+        "resistance": 0.22,
+        "size": 0.24,
+        "color": "#FFC24B"
+      }
+    ]
   }
 }
